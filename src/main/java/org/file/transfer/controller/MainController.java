@@ -1,5 +1,6 @@
 package org.file.transfer.controller;
 
+import org.file.transfer.network.IP_Port_Managment;
 import org.file.transfer.network.TransferManager;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -12,20 +13,35 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.time.LocalDateTime;
 
+import static org.file.transfer.network.IP_Port_Managment.getBestLocalIp;
+
 public class MainController {
 
     // === FXML COMPONENTS ===
-    @FXML private TextField tfIp;
-    @FXML private TextField tfPort;
-    @FXML private TextField tfCustomPort;     // Ô nhập port tùy chỉnh (tùy chọn)
-    @FXML private ProgressBar progressBar;
-    @FXML private Label lblStatus;
-    @FXML private Label lblSpeed;
-    @FXML private Label lblTransferred;
-    @FXML private ListView<String> listReceived;
-    @FXML private Button btnChooseFile;
-    @FXML private Button btnSendFile;
-    @FXML private Label lblMyIp;              // Hiển thị IP + Port (ví dụ: 192.168.1.100:49152)
+    @FXML
+    private TextField tfIp;
+    @FXML
+    private PasswordField tfPasskey; // Changed from Port to Passkey
+    @FXML
+    private Label lblMyPasskey; // New label for my passkey
+    @FXML
+    private Label lblMyPort; // Kept for compatibility but might be unused in new FXML
+    @FXML
+    private ProgressBar progressBar;
+    @FXML
+    private Label lblStatus;
+    @FXML
+    private Label lblSpeed;
+    @FXML
+    private Label lblTransferred;
+    @FXML
+    private ListView<String> listReceived;
+    @FXML
+    private Button btnChooseFile;
+    @FXML
+    private Button btnSendFile;
+    @FXML
+    private Label lblMyIp;
 
     private TransferManager transferManager;
     private File selectedFile;
@@ -35,14 +51,16 @@ public class MainController {
     public void initialize() {
         transferManager = new TransferManager(this);
 
-        // Khởi động với port random
-        int listeningPort = transferManager.startListening(0);
+        // Khởi động với port cố định 6969
+        int listeningPort = transferManager.startListening();
 
         btnSendFile.setDisable(true);
-        tfIp.setPromptText("192.168.1.100");
-        tfPort.setPromptText("Cổng đối phương");  // ← sửa đúng tên field
+        tfIp.setPromptText("192.168.1.x");
 
-        updateStatus("Sẵn sàng • Đang lắng nghe cổng " + listeningPort);
+        // Hiển thị Passkey của mình
+        lblMyPasskey.setText(transferManager.getMyPasskey());
+
+        updateStatus("Ready • Listening on Port " + listeningPort);
         detectAndShowMyIp();
     }
 
@@ -50,72 +68,37 @@ public class MainController {
     @FXML
     private void chooseFile() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Chọn file để gửi");
+        fileChooser.setTitle("Choose File to Send");
         selectedFile = fileChooser.showOpenDialog(null);
 
         if (selectedFile != null) {
             long size = selectedFile.length();
-            btnChooseFile.setText("Đổi file");
-            btnSendFile.setText("Gửi: " + selectedFile.getName());
+            btnChooseFile.setText("Change File");
+            btnSendFile.setText("Send: " + selectedFile.getName());
             btnSendFile.setDisable(false);
-            updateStatus("Đã chọn: " + selectedFile.getName() + " (" + formatBytes(size) + ")");
+            updateStatus("Selected: " + selectedFile.getName() + " (" + formatBytes(size) + ")");
         }
     }
 
-    // ============================= KIỂM TRA KẾT NỐI =============================
-    @FXML
-    private void testConnection() {
-        String ip = tfIp.getText().trim();
-        if (!ip.matches("^\\d{1,3}(\\.\\d{1,3}){3}$")) {
-            showAlert("IP không hợp lệ! (ví dụ: 192.168.1.100)");
-            return;
-        }
-
-        int port;
-        try {
-            port = Integer.parseInt(tfPort.getText());
-        } catch (Exception e) {
-            showAlert("Port không hợp lệ!");
-            return;
-        }
-
-        updateStatus("Đang kiểm tra kết nối tới " + ip + ":" + port + "...");
-        isPeerOnline = false;
-        btnSendFile.setDisable(true);
-
-        new Thread(() -> {
-            System.out.println("[DEBUG] === KIỂM TRA KẾT NỐI tới " + ip + ":" + port + " ===");
-            boolean ok = transferManager.testConnection(ip, port);
-
-            Platform.runLater(() -> {
-                if (ok) {
-                    isPeerOnline = true;
-                    updateStatus("ONLINE – Sẵn sàng gửi file!");
-                    lblStatus.setStyle("-fx-text-fill: #00ff00;");
-                    btnSendFile.setDisable(selectedFile == null);
-                } else {
-                    isPeerOnline = false;
-                    updateStatus("OFFLINE hoặc chặn port!");
-                    lblStatus.setStyle("-fx-text-fill: #ff5555;");
-                }
-            });
-        }).start();
-    }
-
-    // ============================= GỬI FILE =============================
+    // ============================= GỬI FILE (CÓ AUTH)
+    // =============================
     @FXML
     private void sendFile() {
         if (selectedFile == null) {
-            showAlert("Chưa chọn file để gửi!");
+            showAlert("Please choose a file first!");
             return;
         }
 
         String ip = tfIp.getText().trim();
-        int port;
-        try {
-            port = Integer.parseInt(tfPort.getText());
-        } catch (Exception e) {
-            showAlert("Port không hợp lệ!");
+        String passkey = tfPasskey.getText().trim();
+
+        if (!ip.matches("^\\d{1,3}(\\.\\d{1,3}){3}$")) {
+            showAlert("Invalid IP Address!");
+            return;
+        }
+
+        if (passkey.length() != 6 || !passkey.matches("\\d+")) {
+            showAlert("Passkey must be a 6-digit number!");
             return;
         }
 
@@ -123,49 +106,18 @@ public class MainController {
         btnChooseFile.setDisable(true);
         progressBar.setVisible(true);
         progressBar.setProgress(0);
-        updateStatus("Đang gửi " + selectedFile.getName() + " tới " + ip + ":" + port + "...");
 
-        System.out.println("[DEBUG] === GỬI FILE: " + selectedFile.getName() + " (" + formatBytes(selectedFile.length()) + ") ===");
-
-        new Thread(() -> transferManager.sendFile(selectedFile, ip, port)).start();
+        // Gọi hàm xác thực và gửi
+        transferManager.authenticateAndSend(selectedFile, ip, passkey);
     }
 
-    @FXML
-    private void startReceiving() {
-        int port = transferManager.getListeningPort();
-        updateStatus("Đã sẵn sàng nhận file • Cổng: " + port);
-        showAlert("Bạn đã sẵn sàng nhận file!\nIP của bạn: " + getBestLocalIp() + "\nCổng: " + port);
-    }
+    // Removed startReceiving as it's auto-started now, but keeping method if FXML
+    // calls it (though removed from FXML)
+    // If FXML still has it, we can keep empty or remove. In new FXML I removed the
+    // button.
 
-    // ============================= ĐỔI PORT (TÙY CHỌN) =============================
-    @FXML
-    private void applyCustomPort() {
-        transferManager.stopListening();
-        updateStatus("Đang khởi động lại với cổng mới...");
-
-        String text = tfCustomPort.getText().trim();
-        int newPort;
-
-        if (text.isEmpty()) {
-            newPort = 0; // random
-            updateStatus("Đang dùng port random...");
-        } else {
-            try {
-                newPort = Integer.parseInt(text);
-                if (newPort < 1024 || newPort > 65535) throw new Exception();
-            } catch (Exception e) {
-                showAlert("Port phải từ 1024 đến 65535!");
-                transferManager.startListening(0);
-                return;
-            }
-        }
-
-        int actualPort = transferManager.startListening(newPort);
-        tfPort.setText(String.valueOf(actualPort));
-        updateStatus("Đã chuyển sang cổng " + actualPort);
-    }
-
-    // ============================= CALLBACK TỪ TRANSFERMANAGER =============================
+    // ============================= CALLBACK TỪ TRANSFERMANAGER
+    // =============================
     public void updateProgress(double percent, long sent, long total, double speedKB) {
         Platform.runLater(() -> {
             progressBar.setProgress(percent);
@@ -180,7 +132,7 @@ public class MainController {
 
     public void addReceivedFile(String info) {
         Platform.runLater(() -> listReceived.getItems().add(0,
-                "Nhận được " + info + " — " + LocalDateTime.now().withNano(0)));
+                "Received " + info + " — " + LocalDateTime.now().withNano(0)));
     }
 
     public void transferComplete() {
@@ -191,74 +143,57 @@ public class MainController {
             lblTransferred.setText("0 / 0 bytes");
             btnSendFile.setDisable(!selectedFileExists());
             btnChooseFile.setDisable(false);
-            updateStatus("Hoàn thành truyền file!");
+            updateStatus("Transfer Completed Successfully!");
+            showAlert("File sent successfully!");
         });
     }
 
     public void transferFailed(String reason) {
         Platform.runLater(() -> {
-            showAlert("Gửi file thất bại!\nLý do: " + reason);
+            showAlert("Transfer Failed!\nReason: " + reason);
             btnSendFile.setDisable(false);
             btnChooseFile.setDisable(false);
-            updateStatus("Gửi thất bại: " + reason);
+            updateStatus("Failed: " + reason);
         });
     }
 
-    // ============================= HIỂN THỊ IP + PORT =============================
+    // ============================= HIỂN THỊ IP + PORT
+    // =============================
+    public void setListeningIp(String ip) {
+        Platform.runLater(() -> lblMyIp.setText(ip));
+    }
+
     public void setListeningPort(int port) {
-        Platform.runLater(() -> {
-            String ip = getBestLocalIp();
-            lblMyIp.setText(ip + ":" + port);
-            tfPort.setText(String.valueOf(port));
-        });
+        // Port is fixed, maybe update label if exists, or ignore
+        if (lblMyPort != null) {
+            Platform.runLater(() -> lblMyPort.setText(String.valueOf(port)));
+        }
     }
 
     private void detectAndShowMyIp() {
-        Platform.runLater(() -> lblMyIp.setText("Đang lấy IP..."));
+        Platform.runLater(() -> lblMyIp.setText("Detecting..."));
         new Thread(() -> {
             String ip = getBestLocalIp();
             Platform.runLater(() -> {
                 if (!ip.equals("127.0.0.1") && !ip.equals("Không xác định")) {
-                    lblMyIp.setText(ip + ":?");
-                    lblMyIp.setStyle("-fx-text-fill: #00ffaa; -fx-font-weight: bold;");
+                    lblMyIp.setText(ip);
+                    lblMyIp.setStyle("-fx-text-fill: #1E88E5; -fx-font-weight: bold;");
                 } else {
                     lblMyIp.setText("localhost");
-                    lblMyIp.setStyle("-fx-text-fill: #ff6b6b;");
+                    lblMyIp.setStyle("-fx-text-fill: #C62828;");
                 }
             });
         }).start();
     }
 
-    private String getBestLocalIp() {
-        try {
-            var en = NetworkInterface.getNetworkInterfaces();
-            while (en.hasMoreElements()) {
-                var nif = en.nextElement();
-                if (nif.isLoopback() || !nif.isUp()) continue;
-                var addresses = nif.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    var addr = addresses.nextElement();
-                    if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
-                        String ip = addr.getHostAddress();
-                        if (ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) {
-                            return ip;
-                        }
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-        try {
-            return InetAddress.getLocalHost().getHostAddress();
-        } catch (Exception e) {
-            return "Không xác định";
-        }
-    }
-
     // ============================= UTILS =============================
     private String formatBytes(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%,.2f KB", bytes / 1024.0);
-        if (bytes < 1024L * 1024 * 1024) return String.format("%,.2f MB", bytes / (1024.0 * 1024));
+        if (bytes < 1024)
+            return bytes + " B";
+        if (bytes < 1024 * 1024)
+            return String.format("%,.2f KB", bytes / 1024.0);
+        if (bytes < 1024L * 1024 * 1024)
+            return String.format("%,.2f MB", bytes / (1024.0 * 1024));
         return String.format("%,.2f GB", bytes / (1024.0 * 1024 * 1024));
     }
 
@@ -268,9 +203,9 @@ public class MainController {
 
     private void showAlert(String message) {
         Platform.runLater(() -> {
-            Alert a = new Alert(Alert.AlertType.WARNING, message, ButtonType.OK);
+            Alert a = new Alert(Alert.AlertType.INFORMATION, message, ButtonType.OK);
             a.setHeaderText(null);
-            a.setTitle("Thông báo");
+            a.setTitle("Notification");
             a.show();
         });
     }

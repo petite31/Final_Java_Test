@@ -1,0 +1,142 @@
+/* Global Styles */
+.root {
+    -fx-background-color: #F5F7FA; /* Light grey/white background for depth */
+    -fx-font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
+/* Typography */
+.label {
+    -fx-text-fill: #37474F;
+}
+
+.title-label {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #263238;
+}
+
+.subtitle-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #78909C;
+}
+
+.section-header {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #546E7A;
+    -fx-padding: 0 0 8 0;
+}
+
+.info-label {
+    -fx-font-size: 13px;
+    -fx-text-fill: #546E7A;
+}
+
+.highlight-value {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1E88E5; /* Blue accent */
+}
+
+/* Cards */
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 16;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.04), 10, 0, 0, 4);
+    -fx-padding: 24;
+}
+
+/* Inputs */
+.text-field {
+    -fx-background-color: #F0F2F5;
+    -fx-background-radius: 12;
+    -fx-border-width: 0;
+    -fx-padding: 10 12;
+    -fx-font-size: 14px;
+    -fx-text-fill: #37474F;
+}
+
+.text-field:focused {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #1E88E5;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 12;
+}
+
+/* Buttons */
+.button {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-padding: 10 20;
+}
+
+.button-primary {
+    -fx-background-color: #1E88E5;
+    -fx-text-fill: white;
+    -fx-background-radius: 24; /* Pill shape */
+}
+
+.button-primary:hover {
+    -fx-background-color: #1976D2;
+    -fx-effect: dropshadow(three-pass-box, rgba(30, 136, 229, 0.3), 8, 0, 0, 4);
+}
+
+.button-primary:pressed {
+    -fx-background-color: #1565C0;
+}
+
+.button-secondary {
+    -fx-background-color: transparent;
+    -fx-text-fill: #1E88E5;
+    -fx-border-color: #1E88E5;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 24;
+    -fx-background-radius: 24;
+}
+
+.button-secondary:hover {
+    -fx-background-color: rgba(30, 136, 229, 0.05);
+}
+
+.button-icon {
+    -fx-background-color: #E3F2FD; /* Light blue */
+    -fx-text-fill: #1E88E5;
+    -fx-background-radius: 12;
+    -fx-padding: 10;
+}
+
+.button-icon:hover {
+    -fx-background-color: #BBDEFB;
+}
+
+/* Progress Bar */
+.progress-bar .track {
+    -fx-background-color: #E0E0E0;
+    -fx-background-radius: 4;
+}
+
+.progress-bar .bar {
+    -fx-background-color: #1E88E5;
+    -fx-background-radius: 4;
+    -fx-padding: 4px;
+}
+
+/* List View */
+.list-view {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-padding: 8 0;
+    -fx-text-fill: #37474F;
+    -fx-border-color: transparent transparent #ECEFF1 transparent;
+    -fx-border-width: 1;
+}
+
+.list-cell:empty {
+    -fx-background-color: transparent;
+    -fx-border-width: 0;
+}

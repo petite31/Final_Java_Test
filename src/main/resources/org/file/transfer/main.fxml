@@ -3,69 +3,96 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.Circle?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="org.file.transfer.controller.MainController"
-      spacing="20" alignment="CENTER" style="-fx-background-color: #1e1e1e;">
-    <padding>
-        <Insets top="25" right="30" bottom="25" left="30"/>
-    </padding>
+<ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: transparent;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.file.transfer.controller.MainController" stylesheets="@styles.css">
+    <content>
+        <VBox spacing="24" alignment="TOP_CENTER" styleClass="root">
+            <padding>
+                <Insets top="32" right="32" bottom="32" left="32"/>
+            </padding>
 
-    <!-- Tiêu đề -->
-    <Label text="P2P File Transfer - UDP Reliable"
-           style="-fx-text-fill: #00ffaa; -fx-font-size: 28px; -fx-font-weight: bold;"/>
+            <!-- Header Section -->
+            <HBox alignment="CENTER_LEFT" spacing="16">
+                <VBox>
+                    <Label text="FileTransfer" styleClass="title-label"/>
+                    <Label text="Secure P2P Sharing" styleClass="subtitle-label"/>
+                </VBox>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label fx:id="lblStatus" text="Ready to connect" style="-fx-text-fill: #1E88E5; -fx-font-weight: bold; -fx-background-color: #E3F2FD; -fx-background-radius: 12; -fx-padding: 6 12;"/>
+            </HBox>
 
-    <!-- Dòng hiển thị IP + Port của mình -->
-    <HBox spacing="15" alignment="CENTER_LEFT">
-        <Label text="IP của bạn:" style="-fx-text-fill: #aaaaaa; -fx-font-weight: bold;"/>
-        <Label fx:id="lblMyIp" text="Đang lấy IP..."
-               style="-fx-text-fill: #00ffaa; -fx-font-size: 18px; -fx-font-weight: bold;"/>
-        <Label text="• Cổng:" style="-fx-text-fill: #aaaaaa; -fx-font-weight: bold;"/>
-        <Label fx:id="lblMyPort" text="?"
-               style="-fx-text-fill: #00ffaa; -fx-font-size: 18px; -fx-font-weight: bold;"/>
-    </HBox>
+            <!-- Connection Grid -->
+            <GridPane hgap="20" vgap="20">
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="50"/>
+                    <ColumnConstraints percentWidth="50"/>
+                </columnConstraints>
 
-    <!-- Nhập IP + Port đối phương -->
-    <HBox spacing="15" alignment="CENTER_LEFT">
-        <Label text="IP Đối Phương:" style="-fx-text-fill: #e0e0e0;"/>
-        <TextField fx:id="tfIp" prefWidth="200" promptText="192.168.1.100"/>
-        <Label text="Port:" style="-fx-text-fill: #e0e0e0;"/>
-        <TextField fx:id="tfPort" prefWidth="100" promptText="4848"/>
-    </HBox>
+                <!-- My Device Card -->
+                <VBox styleClass="card" spacing="12" GridPane.columnIndex="0">
+                    <Label text="MY DEVICE" styleClass="section-header"/>
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <VBox spacing="4">
+                            <Label text="IP Address" styleClass="info-label"/>
+                            <Label fx:id="lblMyIp" text="..." styleClass="highlight-value"/>
+                        </VBox>
+                    </HBox>
+                    <Separator/>
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <VBox spacing="4">
+                            <Label text="My Passkey" styleClass="info-label"/>
+                            <Label fx:id="lblMyPasskey" text="Generating..." styleClass="highlight-value" style="-fx-text-fill: #E91E63;"/>
+                        </VBox>
+                    </HBox>
+                    <Label text="Port: 6969 (Fixed)" style="-fx-font-size: 11px; -fx-text-fill: #90A4AE;"/>
+                </VBox>
 
-    <!-- Các nút hành động -->
-    <HBox spacing="20" alignment="CENTER">
-        <Button fx:id="btnChooseFile" text="Chọn File Gửi" onAction="#chooseFile"
-                style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 15px; -fx-padding: 12 28;"/>
+                <!-- Recipient Card -->
+                <VBox styleClass="card" spacing="12" GridPane.columnIndex="1">
+                    <Label text="RECIPIENT" styleClass="section-header"/>
+                    <VBox spacing="4">
+                        <Label text="IP Address" styleClass="info-label"/>
+                        <TextField fx:id="tfIp" promptText="e.g. 192.168.1.10"/>
+                    </VBox>
+                    <VBox spacing="4">
+                        <Label text="Peer Passkey" styleClass="info-label"/>
+                        <PasswordField fx:id="tfPasskey" promptText="Enter 6-digit code"/>
+                    </VBox>
+                </VBox>
+            </GridPane>
 
-        <Button fx:id="btnSendFile" text="Gửi File" onAction="#sendFile" disable="true"
-                style="-fx-background-color: #f44336; -fx-text-fill: white; -fx-font-size: 15px; -fx-padding: 12 28;"/>
+            <!-- Actions Card -->
+            <VBox styleClass="card" spacing="20" alignment="CENTER">
+                <Label text="ACTIONS" styleClass="section-header" maxWidth="Infinity" alignment="CENTER_LEFT"/>
+                <HBox spacing="16" alignment="CENTER">
+                    <Button fx:id="btnChooseFile" text="Choose File" onAction="#chooseFile" styleClass="button-secondary"/>
+                    <Button fx:id="btnSendFile" text="Send File" onAction="#sendFile" disable="true" styleClass="button-primary"/>
+                </HBox>
+            </VBox>
 
-        <Button text="Bắt Đầu Nhận" onAction="#startReceiving"
-                style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-size: 15px; -fx-padding: 12 28;"/>
-    </HBox>
+            <!-- Progress Card -->
+            <VBox styleClass="card" spacing="12">
+                <HBox alignment="CENTER_LEFT">
+                    <Label text="TRANSFER PROGRESS" styleClass="section-header"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="lblSpeed" text="0 KB/s" style="-fx-font-size: 12px; -fx-text-fill: #78909C;"/>
+                </HBox>
+                
+                <ProgressBar fx:id="progressBar" prefWidth="Infinity" progress="0" visible="false"/>
+                
+                <HBox alignment="CENTER_RIGHT">
+                    <Label fx:id="lblTransferred" text="0 / 0 bytes" style="-fx-font-size: 12px; -fx-text-fill: #37474F;"/>
+                </HBox>
+            </VBox>
 
-    <!-- Trạng thái -->
-    <Label fx:id="lblStatus" text="Sẵn sàng..."
-           style="-fx-text-fill: #ff9800; -fx-font-size: 16px; -fx-font-weight: bold;"/>
+            <!-- History Card -->
+            <VBox styleClass="card" spacing="12" VBox.vgrow="ALWAYS">
+                <Label text="RECEIVED FILES" styleClass="section-header"/>
+                <ListView fx:id="listReceived" prefHeight="150" styleClass="list-view"/>
+            </VBox>
 
-    <!-- Thanh tiến độ -->
-    <ProgressBar fx:id="progressBar" prefWidth="580" progress="0" visible="false"/>
-
-    <!-- Thông tin truyền -->
-    <HBox spacing="15" alignment="CENTER_LEFT">
-        <Label text="Tốc độ:" style="-fx-text-fill: #aaa;"/>
-        <Label fx:id="lblSpeed" text="0 KB/s" style="-fx-text-fill: #00ffaa; -fx-font-weight: bold;"/>
-        <Label text="• Đã truyền:" style="-fx-text-fill: #aaa;"/>
-        <Label fx:id="lblTransferred" text="0 / 0 bytes" style="-fx-text-fill: #00ffaa; -fx-font-weight: bold;"/>
-    </HBox>
-
-    <Separator/>
-
-    <!-- Danh sách file đã nhận -->
-    <VBox spacing="10">
-        <Label text="File đã nhận:" style="-fx-text-fill: #e0e0e0; -fx-font-size: 16px; -fx-font-weight: bold;"/>
-        <ListView fx:id="listReceived" prefHeight="200"
-                  style="-fx-background-color: #2d2d2d; -fx-control-inner-background: #2d2d2d;"/>
-    </VBox>
-</VBox>
+        </VBox>
+    </content>
+</ScrollPane>

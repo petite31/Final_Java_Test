@@ -11,9 +11,9 @@ public class MainApp extends Application {
     @Override
     public void start(Stage stage) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader(MainApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 620, 600);
-        stage.setTitle("P2P File Transfer - UDP (org.file.transfer)");
-        stage.setResizable(false);
+        Scene scene = new Scene(fxmlLoader.load(), 620, 750);
+        stage.setTitle("FileTransfer - P2P Sharing");
+        stage.setResizable(true);
         stage.setScene(scene);
         stage.show();
     }
