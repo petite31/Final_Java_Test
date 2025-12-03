@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.TilePane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox spacing="20.0" style="-fx-background-color: #F4F7FE;" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.ReceiverFilesController">
+   <padding>
+      <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+   </padding>
+   <children>
+      <HBox alignment="CENTER_LEFT" spacing="15.0">
+         <children>
+            <Label styleClass="title-label" text="Received Files" />
+            <Region HBox.hgrow="ALWAYS" />
+            <ToggleButton fx:id="btnList" mnemonicParsing="false" onAction="#viewList" selected="true" text="List">
+               <toggleGroup>
+                  <ToggleGroup fx:id="viewGroup" />
+               </toggleGroup>
+            </ToggleButton>
+            <ToggleButton fx:id="btnGrid3" mnemonicParsing="false" onAction="#viewGrid3" text="Grid 3x3" toggleGroup="$viewGroup" />
+            <ToggleButton fx:id="btnGrid4" mnemonicParsing="false" onAction="#viewGrid4" text="Grid 4x4" toggleGroup="$viewGroup" />
+            <Button mnemonicParsing="false" onAction="#openFolder" styleClass="button-secondary" text="Open Folder" />
+            <Button mnemonicParsing="false" onAction="#refresh" styleClass="button-icon" text="↻" />
+         </children>
+      </HBox>
+      <StackPane VBox.vgrow="ALWAYS">
+         <children>
+            <ListView fx:id="listView" styleClass="list-view" />
+            <ScrollPane fx:id="scrollPane" fitToWidth="true" style="-fx-background-color: transparent;" visible="false">
+               <content>
+                  <TilePane fx:id="tilePane" hgap="20.0" style="-fx-background-color: transparent;" vgap="20.0" />
+               </content>
+            </ScrollPane>
+         </children>
+      </StackPane>
+   </children>
+</VBox>

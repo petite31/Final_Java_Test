@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox spacing="30.0" style="-fx-background-color: #F4F7FE;" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.SendFilesController">
+   <padding>
+      <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+   </padding>
+   <children>
+      <Label styleClass="title-label" text="Send Files" />
+      <HBox spacing="30.0">
+         <children>
+            <VBox fx:id="dropZone" alignment="CENTER" prefHeight="250.0" prefWidth="400.0" spacing="20.0" style="-fx-border-style: dashed; -fx-border-color: #A3AED0; -fx-border-width: 2; -fx-border-radius: 20; -fx-background-color: white; -fx-background-radius: 20;">
+               <children>
+                  <Label style="-fx-font-size: 48px;" text="☁" textFill="#4318ff" />
+                  <Label styleClass="info-label" text="Drag &amp; Drop files here" />
+                  <Label styleClass="subtitle-label" text="OR" />
+                  <Button fx:id="btnChoose" mnemonicParsing="false" onAction="#chooseFile" styleClass="button-primary" text="Browse Files" />
+                  <Label fx:id="lblSelectedFile" styleClass="highlight-value" text="No file selected" />
+               </children>
+            </VBox>
+            <VBox prefWidth="350.0" spacing="20.0" styleClass="card">
+               <children>
+                  <Label styleClass="section-header" text="RECIPIENT" />
+                  <VBox spacing="5.0">
+                     <children>
+                        <Label styleClass="info-label" text="IP Address" />
+                        <TextField fx:id="tfIp" promptText="e.g. 192.168.1.5" />
+                     </children>
+                  </VBox>
+                  <VBox spacing="5.0">
+                     <children>
+                        <Label styleClass="info-label" text="Passkey" />
+                        <PasswordField fx:id="tfPasskey" promptText="6-digit code" />
+                     </children>
+                  </VBox>
+                  <Button fx:id="btnSend" maxWidth="Infinity" mnemonicParsing="false" onAction="#sendFile" styleClass="button-primary" text="Send Now" />
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+      <VBox spacing="10.0" styleClass="card">
+         <children>
+            <HBox alignment="CENTER_LEFT">
+               <children>
+                  <Label styleClass="section-header" text="TRANSFER STATUS" />
+                  <Region HBox.hgrow="ALWAYS" />
+                  <Label fx:id="lblStatus" styleClass="info-label" text="Ready" />
+               </children>
+            </HBox>
+            <ProgressBar fx:id="progressBar" maxWidth="Infinity" progress="0.0" />
+            <HBox>
+               <children>
+                  <Label fx:id="lblSpeed" styleClass="info-label" text="0 KB/s" />
+                  <Region HBox.hgrow="ALWAYS" />
+                  <Label fx:id="lblTime" styleClass="info-label" text="--:--" />
+               </children>
+            </HBox>
+         </children>
+      </VBox>
+   </children>
+</VBox>

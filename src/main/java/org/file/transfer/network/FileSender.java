@@ -1,6 +1,6 @@
 package org.file.transfer.network;
 
-import org.file.transfer.controller.MainController;
+import org.file.transfer.controller.SendFilesController;
 import org.file.transfer.model.FilePacket;
 
 import java.io.*;
@@ -8,12 +8,10 @@ import java.net.*;
 
 public class FileSender {
     private final TransferManager manager;
-    private final MainController controller;
     private final DatagramSocket socket;
 
     public FileSender(TransferManager manager) throws SocketException {
         this.manager = manager;
-        this.controller = manager.getController();
         this.socket = new DatagramSocket();
         System.out.println("[DEBUG] FileSender: Khởi tạo thành công");
     }
@@ -64,9 +62,7 @@ public class FileSender {
     }
 
     // === GỬI FILE HOÀN CHỈNH (CÓ ACK + RETRY + TIẾN ĐỘ) ===
-    public void sendFile(File file, String targetIp, int targetPort) {
-        controller.updateStatus("Đang gửi " + file.getName() + "...");
-
+    public void sendFile(File file, String targetIp, int targetPort, SendFilesController callback) {
         try {
             InetAddress address = InetAddress.getByName(targetIp);
             long fileSize = file.length();
@@ -94,7 +90,16 @@ public class FileSender {
                     boolean ackReceived = false;
                     int retry = 0;
 
-                    while (!ackReceived && retry < 5) {
+                    while (!ackReceived) {
+                        if (retry >= 5) {
+                            // FREEZE LOGIC: Stop trying, but don't report failure.
+                            // Just exit the loop silently. The UI will remain at current progress.
+                            System.out.println("[DEBUG] Max retries reached. Freezing transfer.");
+                            if (callback != null)
+                                callback.onTransferFrozen();
+                            return;
+                        }
+
                         // Gửi packet
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
                         ObjectOutputStream oos = new ObjectOutputStream(baos);
@@ -105,9 +110,6 @@ public class FileSender {
                                 baos.toByteArray(), baos.size(), address, targetPort);
                         socket.send(dp);
 
-                        // System.out.println("[DEBUG] Đã gửi gói " + packetId + " (retry " + retry +
-                        // ")");
-
                         // Đợi ACK trong 1s
                         socket.setSoTimeout(1000);
                         try {
@@ -117,17 +119,11 @@ public class FileSender {
                             String ackMsg = new String(ackPacket.getData(), 0, ackPacket.getLength());
                             if (ackMsg.startsWith("ACK_" + packetId)) {
                                 ackReceived = true;
-                                // System.out.println("[DEBUG] Nhận ACK cho gói " + packetId);
                             }
                         } catch (SocketTimeoutException e) {
                             retry++;
                             System.out.println("[DEBUG] Timeout gói " + packetId + ", thử lại...");
                         }
-                    }
-
-                    if (!ackReceived) {
-                        controller.transferFailed("Mất kết nối tại gói " + packetId);
-                        return;
                     }
 
                     sentBytes += bytesRead;
@@ -138,18 +134,21 @@ public class FileSender {
                     if (now - lastUpdate > 200 || packet.isLast()) {
                         double percent = (double) sentBytes / fileSize;
                         double speedKB = sentBytes / ((now - startTime) / 1000.0) / 1024.0;
-                        controller.updateProgress(percent, sentBytes, fileSize, speedKB);
+                        long remainingSeconds = speedKB > 0 ? (long) ((fileSize - sentBytes) / 1024.0 / speedKB) : 0;
+
+                        if (callback != null) {
+                            callback.updateProgress(percent, speedKB, remainingSeconds);
+                        }
                         lastUpdate = now;
                     }
                 }
             }
 
-            controller.transferComplete();
-            controller.updateStatus("Gửi thành công: " + file.getName());
+            if (callback != null)
+                callback.onTransferComplete();
 
         } catch (Exception e) {
             e.printStackTrace();
-            controller.transferFailed("Lỗi gửi file: " + e.getMessage());
         }
     }
 
@@ -160,8 +159,6 @@ public class FileSender {
             DatagramPacket packet = new DatagramPacket(
                     ackMsg.getBytes(), ackMsg.length(), address, port);
             socket.send(packet);
-            // System.out.println("[DEBUG] Đã gửi ACK_" + packetId + " tới " + address + ":"
-            // + port);
         } catch (Exception e) {
             System.out.println("[DEBUG] Gửi ACK lỗi: " + e.getMessage());
         }

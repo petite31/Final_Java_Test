@@ -1,25 +1,20 @@
 package org.file.transfer.network;
 
-import javafx.application.Platform;
-import org.file.transfer.controller.MainController;
 import org.file.transfer.model.FilePacket;
 
 import java.io.*;
 import java.net.*;
-import java.nio.file.*;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 public class FileReceiver {
-    private final MainController controller;
     private final DatagramSocket socket;
     private final FileSender fileSender;
     private final String myPasskey;
     private final Set<String> authenticatedIps = Collections.synchronizedSet(new HashSet<>());
 
     public FileReceiver(TransferManager manager, int requestedPort, String passkey) throws SocketException {
-        this.controller = manager.getController();
         this.myPasskey = passkey;
 
         // Tạo socket với port cố định (6969)
@@ -36,12 +31,6 @@ public class FileReceiver {
         }
 
         System.out.println("[DEBUG] FileReceiver: Bind tại " + localIp + ":" + actualPort + " | Passkey: " + myPasskey);
-
-        // Gửi lên giao diện
-        controller.setListeningPort(actualPort);
-        controller.setListeningIp(localIp);
-        controller.setListeningPort(actualPort);
-        controller.updateStatus("Đang lắng nghe tại " + localIp + ":" + actualPort + "...");
 
         this.fileSender = new FileSender(manager);
         startReceivingLoop();
@@ -91,7 +80,6 @@ public class FileReceiver {
                                 authenticatedIps.add(senderIp);
                                 responseMsg = "AUTH_RESPONSE:OK";
                                 System.out.println("[DEBUG] Auth SUCCESS for " + senderIp);
-                                controller.updateStatus("Đã xác thực kết nối từ " + senderIp);
                             } else {
                                 responseMsg = "AUTH_RESPONSE:FAIL";
                                 System.out.println("[DEBUG] Auth FAILED for " + senderIp + " (Wrong Passkey: "
@@ -109,6 +97,15 @@ public class FileReceiver {
                     if (!authenticatedIps.contains(senderIp)) {
                         System.out.println("[WARN] Từ chối gói tin từ IP chưa xác thực: " + senderIp);
                         continue;
+                    }
+
+                    // Check Network Mode
+                    if (!org.file.transfer.utils.SettingsManager.getInstance().isAllowExternal()) {
+                        InetAddress senderAddr = packet.getAddress();
+                        if (!senderAddr.isSiteLocalAddress() && !senderAddr.isLoopbackAddress()) {
+                            System.out.println("[WARN] Blocked external connection from: " + senderIp);
+                            continue;
+                        }
                     }
 
                     // Xử lý file packet
@@ -130,9 +127,30 @@ public class FileReceiver {
     }
 
     private void handleFilePacket(FilePacket fp, InetAddress fromIp) {
-        // Code xử lý nhận file (giữ nguyên như cũ)
-        // ... (lưu vào Received)
-        controller.addReceivedFile(fp.fileName() + " từ " + fromIp.getHostAddress());
-        controller.updateStatus("Nhận xong: " + fp.fileName());
+        try {
+            String downloadDir = org.file.transfer.utils.SettingsManager.getInstance().getDownloadDirectory();
+            File outputFile = new File(downloadDir, fp.fileName());
+
+            // Create file if first packet
+            if (fp.packetId() == 0) {
+                outputFile.createNewFile();
+            }
+
+            // Write data to file
+            try (RandomAccessFile raf = new RandomAccessFile(outputFile, "rw")) {
+                long offset = (long) fp.packetId() * 60000;
+                raf.seek(offset);
+                raf.write(fp.data());
+            }
+
+            // If last packet, notify completion
+            if (fp.isLast()) {
+                System.out.println("[DEBUG] File received: " + outputFile.getAbsolutePath());
+                // In a real app, we would notify the UI service here
+            }
+
+        } catch (IOException e) {
+            System.out.println("[ERROR] Failed to save file: " + e.getMessage());
+        }
     }
 }

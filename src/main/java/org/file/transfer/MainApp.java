@@ -2,23 +2,32 @@ package org.file.transfer;
 
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-
-import java.io.IOException;
+import org.file.transfer.network.TransferManager;
+import org.file.transfer.service.TransferService;
 
 public class MainApp extends Application {
+
     @Override
-    public void start(Stage stage) throws IOException {
-        FXMLLoader fxmlLoader = new FXMLLoader(MainApp.class.getResource("main.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 620, 750);
-        stage.setTitle("FileTransfer - P2P Sharing");
-        stage.setResizable(true);
-        stage.setScene(scene);
-        stage.show();
+    public void start(Stage primaryStage) throws Exception {
+        // Initialize Service
+        TransferService.getInstance().initialize(new TransferManager());
+
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/file/transfer/view/MainLayout.fxml"));
+        Parent root = loader.load();
+
+        primaryStage.setTitle("FileTransfer P2P");
+        primaryStage.setScene(new Scene(root));
+        primaryStage.show();
+
+        primaryStage.setOnCloseRequest(e -> {
+            System.exit(0);
+        });
     }
 
     public static void main(String[] args) {
-        launch();
+        launch(args);
     }
 }

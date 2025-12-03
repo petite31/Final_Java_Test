@@ -1,117 +1,70 @@
 package org.file.transfer.network;
 
-import org.file.transfer.controller.MainController;
+import org.file.transfer.controller.SendFilesController;
+import org.file.transfer.service.TransferService;
 
 import java.io.File;
-import java.net.*;
+import java.net.SocketException;
 import java.util.Random;
 
 public class TransferManager {
-    public static final int FIXED_PORT = 6969;
-
-    private final MainController controller;
     private FileSender fileSender;
     private FileReceiver fileReceiver;
-    private boolean isRunning = false;
     private String myPasskey;
 
-    public TransferManager(MainController controller) {
-        this.controller = controller;
-        this.myPasskey = generatePasskey();
+    public TransferManager() {
+        // Generate a random 6-digit passkey
+        this.myPasskey = String.format("%06d", new Random().nextInt(1000000));
+        try {
+            this.fileSender = new FileSender(this);
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
     }
 
-    private String generatePasskey() {
-        return String.format("%06d", new Random().nextInt(1000000));
+    public int startListening() {
+        try {
+            // Try port 6969, if busy try 0 (random)
+            int port = 6969;
+            try {
+                this.fileReceiver = new FileReceiver(this, port, myPasskey);
+            } catch (SocketException e) {
+                this.fileReceiver = new FileReceiver(this, 0, myPasskey);
+            }
+            return fileReceiver.getPort();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    public void authenticateAndSend(File file, String ip, String passkey, SendFilesController callback) {
+        new Thread(() -> {
+            boolean auth = fileSender.performHandshake(ip, 6969, passkey); // Default port 6969
+            if (auth) {
+                fileSender.sendFile(file, ip, 6969, callback);
+            } else {
+                // Handle auth failure
+                System.out.println("Auth failed");
+            }
+        }).start();
     }
 
     public String getMyPasskey() {
         return myPasskey;
     }
 
-    /**
-     * Trả về cổng đang lắng nghe
-     */
-    public int getListeningPort() {
-        return FIXED_PORT;
+    // Helper to get service instance if needed by children
+    public TransferService getService() {
+        return TransferService.getInstance();
     }
 
-    /**
-     * Khởi động lắng nghe trên cổng cố định 6969
-     */
-    public synchronized int startListening() {
-        if (isRunning) {
-            System.out.println("[DEBUG] Đã đang lắng nghe, bỏ qua startListening()");
-            return FIXED_PORT;
-        }
-
-        try {
-            fileSender = new FileSender(this);
-            fileReceiver = new FileReceiver(this, FIXED_PORT, myPasskey); // Pass passkey to receiver
-            isRunning = true;
-
-            System.out.println("[DEBUG] TransferManager: Đã khởi động thành công trên cổng " + FIXED_PORT);
-            controller.setListeningPort(FIXED_PORT); // cập nhật giao diện
-            return FIXED_PORT;
-
-        } catch (Exception e) {
-            System.out.println("[DEBUG] Lỗi khởi động TransferManager: " + e.getMessage());
-            e.printStackTrace();
-            controller.transferFailed("Không thể khởi động mạng (Port 6969 có thể đang bận): " + e.getMessage());
-            return -1;
-        }
-    }
-
-    /**
-     * DỪNG HOÀN TOÀN
-     */
-    public synchronized void stopListening() {
-        System.out.println("[DEBUG] TransferManager: Đang dừng toàn bộ UDP...");
-
-        if (fileReceiver != null) {
-            fileReceiver.close();
-            fileReceiver = null;
-        }
-        if (fileSender != null) {
-            fileSender.close();
-            fileSender = null;
-        }
-        isRunning = false;
-        System.out.println("[DEBUG] Đã dừng lắng nghe thành công!");
-    }
-
-    // Authenticate and Send
-    public void authenticateAndSend(File file, String ip, String passkey) {
-        if (!isRunning || fileSender == null) {
-            controller.transferFailed("Chưa khởi động mạng!");
-            return;
-        }
-
-        new Thread(() -> {
-            controller.updateStatus("Đang xác thực với " + ip + "...");
-            boolean authSuccess = fileSender.performHandshake(ip, FIXED_PORT, passkey);
-
-            if (authSuccess) {
-                controller.updateStatus("Xác thực thành công! Bắt đầu gửi...");
-                sendFile(file, ip, FIXED_PORT);
-            } else {
-                controller.transferFailed("Xác thực thất bại! Sai Passkey hoặc đối phương từ chối.");
-            }
-        }).start();
-    }
-
-    // Gửi file (Private, called after auth)
-    private void sendFile(File file, String ip, int port) {
-        System.out.println("[DEBUG] TransferManager: Bắt đầu gửi file tới " + ip + ":" + port);
-        fileSender.sendFile(file, ip, port);
-    }
-
-    // Test kết nối (Optional now, but good to keep)
-    public boolean testConnection(String ip, int port) {
-        return fileSender != null && fileSender.testConnection(ip, port);
-    }
-
-    // Getter để FileReceiver/FileSender gọi lại Controller
-    public MainController getController() {
-        return controller;
-    }
+    // Helper for Receiver to notify UI (if we had a ReceiverController callback)
+    // For now, Receiver updates via polling or we can add an event bus later.
+    // But since we are refactoring, let's keep it simple: Receiver writes file, UI
+    // refreshes on user action or polling.
+    // The user requirement says "Receiver Files Page... Display all received
+    // files".
+    // We can just rely on the file system watcher or manual refresh for now to keep
+    // it simple as per "clean code".
 }
