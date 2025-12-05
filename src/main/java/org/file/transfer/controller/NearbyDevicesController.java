@@ -69,65 +69,10 @@ public class NearbyDevicesController {
         if (selected != null) {
             // Always UDP
 
-            // says "Display it... Broadcast...".
-            // User B (Sender): Sees Peer A. Connects.
-            // Scenario 1: B types A's passkey?
-            // Scenario 2: "Auto-fill on peer acceptance".
-            // Let's interpret Requirement: "PASSKEY_REQUEST... PASSKEY_ACCEPT...
-            // auto-fill".
-            // This sounds like:
-            // A sends Request with *some* key? Or A request "I want to connect".
-            // Actually, usually:
-            // Receiver (A) has Key "123456".
-            // Sender (B) must know "123456".
-            // If B sends "PASSKEY_REQUEST|B|123456", A says "Matches! ACCEPT".
-            // B gets "ACCEPT". B auto-fills IP of A and "123456" into Send Form and starts.
-            // So B needs to Input the key first? OR B Generates key and A accepts?
-            // Req: "Generate... Display... Broadcast the passkey...".
-            // Ah! "Broadcast the passkey with a discovery packet".
-            // So A broadcasts "I am A, Key: 123456".
-            // B sees A. B clicks Connect. B already knows Key from discovery??
-            // That would be insecure (broadcasting connection key).
-            // "Broadcast the passkey" -> This seems insecure IF it's the auth key.
-            // Maybe "Broadcast presence...".
-            // Re-read: "Broadcast the passkey with a discovery packet when created."
-            // Ok, if the requirement explicitly says broadcast it, then it's meant for easy
-            // local discovery/auth?
-            // "PASSKEY_REQUEST|<device>|<passkey>".
-
-            // Let's assume the flow:
-            // 1. Device A generates Key. Broadcasts it (or implicitly uses it).
-            // 2. Device B connects. Sends "PASSKEY_REQUEST|B|KeyOfA".
-            // 3. A validates. Sends "PASSKEY_ACCEPT".
-            // 4. B gets ACCEPT. B starts transfer.
-
-            // BUT, if discovery packet doesn't have key (my impl didn't add it yet), B
-            // doesn't know it.
-            // "Broadcast the passkey with a discovery packet".
-            // I missed that in Discovery Update!
-
-            // Correction: I need to update DiscoveryService to include passkey in
-            // "DISCOVER_PEER_REQUEST".
-            // Then PeerInfo will have it.
-            // Then B can just use it.
-
-            // Security note: Broadcasting passkey on LAN means anyone on LAN can connect.
-            // It protects against outside-LAN, but not inside.
-            // This is "easy pairing".
-
-            // So:
-            // 1. DiscoveryService broadcasts key.
-            // 2. PeerInfo includes key.
-            // 3. Connect -> Send PASSKEY_REQUEST (for handshake/verification).
-            // 4. Receive ACCEPT.
-            // 5. Navigate to Send.
-
-            // Wait, I didn't update DiscoveryService to broadcast passkey. I should fix
-            // that next.
-            // For now, let's assume we implement the flow assuming PeerInfo has it or we
-            // prompt user (Fallback).
-            // But Req says "auto-fill", implying no prompt.
-            // So I MUST Broadcast it.
+            // Send Connection Request
+            // DiscoveryService sends: PASSKEY_REQUEST|<me>|<passkey>|<port>
+            // We now send a default passkey as the verification is removed.
+            // The receiver will just see a request and can Accept/Decline.
 
             // Send Connection Request
             discoveryService.sendConnectionRequest(selected.getIp());
