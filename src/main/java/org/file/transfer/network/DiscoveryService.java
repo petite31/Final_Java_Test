@@ -97,6 +97,7 @@ public class DiscoveryService {
 
     private void broadcastPresence() {
         // FORMAT: DISCOVER_PEER_REQUEST|<deviceName>|<listeningPort>|<mechanism>
+        // V3: Mechanism is always UDP.
         String msg = "DISCOVER_PEER_REQUEST|" + deviceName + "|" + fileTransferPort + "|UDP";
         sendUdp(msg, BROADCAST_Address, DISCOVERY_PORT);
     }

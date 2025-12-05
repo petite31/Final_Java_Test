@@ -67,12 +67,8 @@ public class NearbyDevicesController {
     private void connectToPeer() {
         PeerInfo selected = tablePeers.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            String mechanism = selected.getMechanism();
-            if ("Bluetooth".equalsIgnoreCase(mechanism)) {
-                System.out.println("Bluetooth connection requested to " + selected.getName());
-                // TODO: Use TransportManager to create Bluetooth Transport
-            }
-
+             // Always UDP
+             
             // Generate Passkey if not valid
             if (!PasskeyManager.getInstance().isValid()) {
                 PasskeyManager.getInstance().generateNewPasskey();

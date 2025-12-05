@@ -32,13 +32,7 @@
             <Label styleClass="section-header" text="NETWORK" />
             <VBox spacing="10.0">
                <children>
-                   <Label text="Protocol" style="-fx-font-weight: bold;"/>
-                   <CheckBox fx:id="cbUdp" text="UDP (Wi-Fi LAN)"/>
-                   <CheckBox fx:id="cbBluetooth" text="Bluetooth (RFCOMM)"/>
-                   
-                   <Separator/>
-                   
-                   <RadioButton fx:id="rbLan" mnemonicParsing="false" selected="true" text="Local Network Only (LAN)">
+                  <RadioButton fx:id="rbLan" mnemonicParsing="false" selected="true" text="Local Network Only (LAN)">
                      <toggleGroup>
                         <ToggleGroup fx:id="netGroup" />
                      </toggleGroup>

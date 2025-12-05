@@ -41,6 +41,12 @@
                         <Label fx:id="lblHostname" styleClass="highlight-value" text="Unknown" />
                      </children>
                   </HBox>
+                  <HBox spacing="10.0">
+                     <children>
+                        <Label styleClass="info-label" text="Bluetooth:" />
+                        <Label fx:id="lblBluetooth" styleClass="highlight-value" text="Checking..." />
+                     </children>
+                  </HBox>
                   <Button mnemonicParsing="false" onAction="#refreshIp" styleClass="button-icon" text="Refresh IP">
                      <VBox.margin>
                         <Insets top="20.0" />
