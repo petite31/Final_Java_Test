@@ -42,7 +42,7 @@ public class TransferManager {
         new Thread(() -> {
             boolean auth = fileSender.performHandshake(ip, 6969, passkey); // Default port 6969
             if (auth) {
-                fileSender.sendFile(file, ip, 6969, callback);
+                fileSender.sendFileOrFolder(file, ip, 6969, callback);
             } else {
                 // Handle auth failure
                 System.out.println("Auth failed");

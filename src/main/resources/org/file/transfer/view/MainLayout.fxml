@@ -22,6 +22,7 @@
             <Button fx:id="btnHome" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showHome" styleClass="nav-button" text="Home" />
             <Button fx:id="btnSend" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showSend" styleClass="nav-button" text="Send Files" />
             <Button fx:id="btnReceive" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showReceive" styleClass="nav-button" text="Receiver Files" />
+            <Button fx:id="btnLanDiscovery" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showLanDiscovery" styleClass="nav-button" text="LAN Discovery" />
             <Button fx:id="btnSettings" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showSettings" styleClass="nav-button" text="Settings" />
          </children>
          <padding>
