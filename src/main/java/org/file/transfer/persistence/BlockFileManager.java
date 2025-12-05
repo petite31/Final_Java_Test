@@ -1,0 +1,107 @@
+package org.file.transfer.persistence;
+
+import java.io.*;
+import java.util.BitSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
+
+public class BlockFileManager {
+    private static BlockFileManager instance;
+
+    // We need to store more than just BitSet. We need Total Blocks.
+    public static class TransferState implements Serializable {
+        public BitSet receivedBlocks;
+        public int totalBlocks;
+        public long lastModified;
+
+        public TransferState(int total) {
+            this.receivedBlocks = new BitSet(total);
+            this.totalBlocks = total;
+            this.lastModified = System.currentTimeMillis();
+        }
+    }
+
+    private final Map<String, TransferState> activeTransfers = new ConcurrentHashMap<>();
+    private final Map<String, Object> fileLocks = new ConcurrentHashMap<>();
+
+    private BlockFileManager() {
+    }
+
+    public static synchronized BlockFileManager getInstance() {
+        if (instance == null)
+            instance = new BlockFileManager();
+        return instance;
+    }
+
+    public Set<String> getActiveFiles() {
+        return activeTransfers.keySet();
+    }
+
+    public TransferState getState(String fileName) {
+        return activeTransfers.computeIfAbsent(fileName, this::loadFromDisk);
+    }
+
+    // Legacy support for Receiver
+    public BitSet getReceivedBlocks(String fileName) {
+        return getState(fileName).receivedBlocks;
+    }
+
+    public void markBlockReceived(String fileName, int packetId, int totalPackets) {
+        TransferState state = getState(fileName);
+        if (state.totalBlocks == 0)
+            state.totalBlocks = totalPackets; // fix if loaded empty
+
+        synchronized (state) {
+            state.receivedBlocks.set(packetId);
+            state.lastModified = System.currentTimeMillis();
+        }
+        saveToDisk(fileName, state);
+    }
+
+    public boolean isComplete(String fileName, int totalPackets) {
+        TransferState state = getState(fileName);
+        synchronized (state) {
+            return state.receivedBlocks.cardinality() == totalPackets;
+        }
+    }
+
+    public void cleanup(String fileName) {
+        activeTransfers.remove(fileName);
+        new File(fileName + ".transfer").delete();
+    }
+
+    private TransferState loadFromDisk(String fileName) {
+        File meta = new File(fileName + ".transfer");
+        if (!meta.exists())
+            return new TransferState(0);
+
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(meta))) {
+            Object obj = ois.readObject();
+            if (obj instanceof BitSet) {
+                // Migrate legacy
+                TransferState s = new TransferState(0);
+                s.receivedBlocks = (BitSet) obj;
+                return s;
+            } else if (obj instanceof TransferState) {
+                return (TransferState) obj;
+            }
+        } catch (Exception e) {
+            return new TransferState(0);
+        }
+        return new TransferState(0);
+    }
+
+    private void saveToDisk(String fileName, TransferState state) {
+        Object lock = fileLocks.computeIfAbsent(fileName, k -> new Object());
+        synchronized (lock) {
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(fileName + ".transfer"))) {
+                synchronized (state) {
+                    oos.writeObject(state);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}

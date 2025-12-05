@@ -1,6 +1,7 @@
 package org.file.transfer.network;
 
 import org.file.transfer.model.PeerInfo;
+import org.file.transfer.service.PasskeyManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -13,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 public class DiscoveryService {
     private static final int DISCOVERY_PORT = 8888;
@@ -25,6 +27,8 @@ public class DiscoveryService {
     private boolean running = false;
     private final String deviceName;
     private final int fileTransferPort; // Port 6969 usually
+
+    private BiConsumer<String, String> onPasskeyAccepted; // (ip, passkey) -> void
 
     private final ObservableList<PeerInfo> activePeers = FXCollections.observableArrayList();
     private final Map<String, PeerInfo> peerMap = new ConcurrentHashMap<>();
@@ -44,7 +48,6 @@ public class DiscoveryService {
     }
 
     public static synchronized DiscoveryService getInstance() {
-        // Fallback if accessed before init, though ideally should be init first
         if (instance == null)
             throw new IllegalStateException("DiscoveryService not initialized");
         return instance;
@@ -52,6 +55,10 @@ public class DiscoveryService {
 
     public ObservableList<PeerInfo> getActivePeers() {
         return activePeers;
+    }
+
+    public void setOnPasskeyAccepted(BiConsumer<String, String> callback) {
+        this.onPasskeyAccepted = callback;
     }
 
     public void start() {
@@ -65,18 +72,11 @@ public class DiscoveryService {
             System.out.println("[Discovery] Listening on port " + DISCOVERY_PORT);
         } catch (SocketException e) {
             System.err.println("[Discovery] Failed to bind port " + DISCOVERY_PORT + ": " + e.getMessage());
-            // Fallback or handle error? For now just return, maybe UI should show error
-            // Logic might continue if we can't listen but can broadcast? No, usually
-            // symmetric.
             return;
         }
 
-        // Start Listening Thread
         new Thread(this::listenLoop).start();
-
         scheduler.scheduleAtFixedRate(this::broadcastPresence, 0, BROADCAST_INTERVAL, TimeUnit.SECONDS);
-
-        // Start Cleanup Task (remove timed out peers)
         scheduler.scheduleAtFixedRate(this::cleanupPeers, 5, 1, TimeUnit.SECONDS);
     }
 
@@ -88,22 +88,32 @@ public class DiscoveryService {
         scheduler.shutdownNow();
     }
 
+    // API to send PASSKEY_REQUEST
+    public void sendPasskeyRequest(String targetIp, String passkey) {
+        // PASSKEY_REQUEST|<deviceName>|<passkey>|<listeningPort>
+        String msg = "PASSKEY_REQUEST|" + deviceName + "|" + passkey + "|" + fileTransferPort;
+        sendUdp(msg, targetIp, DISCOVERY_PORT);
+    }
+
     private void broadcastPresence() {
+        // FORMAT: DISCOVER_PEER_REQUEST|<deviceName>|<listeningPort>|<mechanism>
+        String msg = "DISCOVER_PEER_REQUEST|" + deviceName + "|" + fileTransferPort + "|UDP";
+        sendUdp(msg, BROADCAST_Address, DISCOVERY_PORT);
+    }
+
+    private void sendUdp(String msg, String ip, int port) {
         try {
-            // FORMAT: DISCOVER_PEER_REQUEST|<deviceName>|<listeningPort>
-            String msg = "DISCOVER_PEER_REQUEST|" + deviceName + "|" + fileTransferPort;
             byte[] data = msg.getBytes();
-            DatagramPacket packet = new DatagramPacket(data, data.length, InetAddress.getByName(BROADCAST_Address),
-                    DISCOVERY_PORT);
+            DatagramPacket packet = new DatagramPacket(data, data.length, InetAddress.getByName(ip), port);
             if (socket != null && !socket.isClosed())
                 socket.send(packet);
         } catch (Exception e) {
-            System.err.println("[Discovery] Broadcast failed: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     private void listenLoop() {
-        byte[] buffer = new byte[1024];
+        byte[] buffer = new byte[2048];
         while (running && socket != null && !socket.isClosed()) {
             try {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -112,12 +122,10 @@ public class DiscoveryService {
                 String message = new String(packet.getData(), 0, packet.getLength());
                 String senderIp = packet.getAddress().getHostAddress();
 
-                // Ignore self
                 if (isLocalAddress(packet.getAddress()))
                     continue;
 
-                processMessage(message, senderIp, packet.getPort()); // Port here is source port of UDP packet, not the
-                                                                     // transfer port
+                processMessage(message, senderIp, packet.getPort());
 
             } catch (SocketException e) {
                 if (running)
@@ -130,21 +138,6 @@ public class DiscoveryService {
 
     private boolean isLocalAddress(InetAddress addr) {
         try {
-            // Simple check if it's one of local interfaces
-            // This is naive. Better to check if senderIp == localIp
-            // For P2P on same machine, we might want to allow 127.0.0.1 if testing?
-            // User said "LAN Discovery", usually implies different machines.
-            // But for testing on localhost, we might want to allow it IF the port is
-            // different?
-            // But Discovery uses fixed port 8888.
-            // Same machine running 2 instances cannot bind 8888 twice.
-            // So actually, to test this strictly on one machine, we'd need different
-            // discovery ports or multicast.
-            // However, requirements say "Listen on a dedicated discovery UDP port (e.g.,
-            // 8888)".
-            // This implies one instance per machine is the standard deployment.
-            // I will assume standard LAN deployment.
-
             return NetworkInterface.getByInetAddress(addr) != null;
         } catch (Exception e) {
             return false;
@@ -153,55 +146,75 @@ public class DiscoveryService {
 
     private void processMessage(String message, String senderIp, int senderDiscoveryPort) {
         String[] parts = message.split("\\|");
-        if (parts.length < 3)
+        if (parts.length < 2)
             return;
 
         String type = parts[0];
-        String peerName = parts[1];
 
-        // Handle Request
-        if ("DISCOVER_PEER_REQUEST".equals(type)) {
+        if ("DISCOVER_PEER_REQUEST".equals(type) && parts.length >= 3) {
+            String peerName = parts[1];
             int peerTransferPort = Integer.parseInt(parts[2]);
-            updatePeer(peerName, senderIp, peerTransferPort);
+            String mech = parts.length > 3 ? parts[3] : "UDP";
 
-            // Respond
+            updatePeer(peerName, senderIp, peerTransferPort, mech);
             sendResponse(senderIp, senderDiscoveryPort);
-        }
-        // Handle Response
-        else if ("DISCOVER_PEER_RESPONSE".equals(type)) {
-            // FORMAT: DISCOVER_PEER_RESPONSE|<deviceName>|<peerIP>|<port>
-            // Wait, the sender IP is already known from packet. The payload IP might be
-            // redundant or useful if behind NAT?
-            // Logic says: Respond with DISCOVER_PEER_RESPONSE|<deviceName>|<peerIP>|<port>
-            // The <peerIP> in response is likely 'MY IP'.
-            if (parts.length >= 4) {
-                int peerTransferPort = Integer.parseInt(parts[3]);
-                updatePeer(peerName, senderIp, peerTransferPort);
+        } else if ("DISCOVER_PEER_RESPONSE".equals(type) && parts.length >= 4) {
+            String peerName = parts[1];
+            int peerTransferPort = Integer.parseInt(parts[3]);
+            String mech = parts.length > 4 ? parts[4] : "UDP";
+
+            updatePeer(peerName, senderIp, peerTransferPort, mech);
+        } else if ("PASSKEY_REQUEST".equals(type) && parts.length >= 4) {
+            // PASSKEY_REQUEST|<deviceName>|<passkey>|<listeningPort>
+            String requesterName = parts[1];
+            String attemptKey = parts[2];
+            int requesterTransferPort = Integer.parseInt(parts[3]);
+
+            // Validate Passkey
+            if (PasskeyManager.getInstance().isValid() &&
+                    PasskeyManager.getInstance().getCurrentPasskey().equals(attemptKey)) {
+
+                System.out.println("[Discovery] Accepted passkey from " + requesterName);
+
+                // Send ACCEPT
+                // PASSKEY_ACCEPT|<deviceName>|<passkey> (Wait, why send passkey back? Just OK
+                // is enough, but user asked for it)
+                // "PASSKEY_ACCEPT|<deviceName>|<passkey>"
+                String reply = "PASSKEY_ACCEPT|" + deviceName + "|" + attemptKey;
+                sendUdp(reply, senderIp, senderDiscoveryPort); // Send back to discovery port
+            } else {
+                System.out.println("[Discovery] Denied passkey from " + requesterName);
+            }
+        } else if ("PASSKEY_ACCEPT".equals(type) && parts.length >= 3) {
+            // PASSKEY_ACCEPT|<deviceName>|<passkey>
+            String acceptorName = parts[1];
+            String acceptedKey = parts[2];
+            System.out.println("[Discovery] Passkey accepted by " + acceptorName);
+
+            if (onPasskeyAccepted != null) {
+                Platform.runLater(() -> onPasskeyAccepted.accept(senderIp, acceptedKey));
             }
         }
     }
 
     private void sendResponse(String targetIp, int targetPort) {
         try {
-            // FORMAT: DISCOVER_PEER_RESPONSE|<deviceName>|<peerIP>|<port>
-            // We can just use our local IP or leave it empty if receiver can detect it.
-            // Let's try to detect our IP.
             String myIp = InetAddress.getLocalHost().getHostAddress();
-            String msg = "DISCOVER_PEER_RESPONSE|" + deviceName + "|" + myIp + "|" + fileTransferPort;
-            byte[] data = msg.getBytes();
-            DatagramPacket packet = new DatagramPacket(data, data.length, InetAddress.getByName(targetIp), targetPort);
-            socket.send(packet);
+            String msg = "DISCOVER_PEER_RESPONSE|" + deviceName + "|" + myIp + "|" + fileTransferPort + "|UDP";
+            sendUdp(msg, targetIp, targetPort);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void updatePeer(String name, String ip, int port) {
+    private void updatePeer(String name, String ip, int port, String mech) {
         String key = ip + ":" + port;
         PeerInfo info = peerMap.get(key);
 
         if (info == null) {
             info = new PeerInfo(name, ip, port);
+            // TODO: Add mechanism to PeerInfo model
+            // For now we just store it or log it
             peerMap.put(key, info);
             PeerInfo finalInfo = info;
             Platform.runLater(() -> activePeers.add(finalInfo));

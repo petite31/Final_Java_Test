@@ -4,6 +4,8 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.layout.BorderPane;
+import org.file.transfer.network.DiscoveryService;
+
 import java.io.IOException;
 
 public class MainLayoutController {
@@ -22,7 +24,25 @@ public class MainLayoutController {
     @FXML
     public void initialize() {
         instance = this;
+
+        // Initialize DiscoveryService early
+        // Typically port 6969 for file transfer
+        DiscoveryService.getInstance(6969).start();
+
         showHome();
+
+        // Auto-navigate on Passkey reception
+        try {
+            DiscoveryService.getInstance().setOnPasskeyAccepted((ip, passkey) -> {
+                showSendWithPeer(ip);
+                // We should also pre-fill passkey in the Send controller.
+                // But showSendWithPeer only takes IP.
+                // The SendFilesController will need to be updated or we need a way to pass
+                // passkey.
+            });
+        } catch (IllegalStateException e) {
+            // Service not started yet, ignore
+        }
     }
 
     @FXML
@@ -41,8 +61,8 @@ public class MainLayoutController {
     }
 
     @FXML
-    private void showLanDiscovery() {
-        loadView("LanDiscovery.fxml", null);
+    private void showNearbyDevices() {
+        loadView("nearby_devices.fxml", null);
     }
 
     @FXML
@@ -57,6 +77,7 @@ public class MainLayoutController {
 
             SendFilesController controller = loader.getController();
             controller.setRecipientIp(ip);
+            // TODO: controller.setPasskey(passkey);
 
             contentArea.setCenter(view);
         } catch (IOException e) {
@@ -69,7 +90,6 @@ public class MainLayoutController {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/file/transfer/view/" + fxml));
             Parent view = loader.load();
             contentArea.setCenter(view);
-            // If data needed passed, check instance of controller
         } catch (IOException e) {
             e.printStackTrace();
         }

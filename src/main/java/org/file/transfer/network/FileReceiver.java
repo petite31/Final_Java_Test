@@ -2,6 +2,9 @@ package org.file.transfer.network;
 
 import org.file.transfer.model.FilePacket;
 import org.file.transfer.model.FolderManifest;
+import org.file.transfer.persistence.BlockFileManager;
+import org.file.transfer.transport.Transport;
+import org.file.transfer.transport.TransportManager;
 import org.file.transfer.utils.SettingsManager;
 
 import java.io.*;
@@ -10,152 +13,148 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class FileReceiver {
-    private final DatagramSocket socket;
+    private final Transport transport;
     private final FileSender fileSender;
     private final String myPasskey;
     private final Set<String> authenticatedIps = Collections.synchronizedSet(new HashSet<>());
-    private final Map<String, BitSet> transferProgress = new ConcurrentHashMap<>(); // Key: fileName
-
-    // Default buffer size
-    private static final int BUFFER_SIZE = 65507; // Max UDP payload
+    private final BlockFileManager blockManager = BlockFileManager.getInstance();
 
     public FileReceiver(TransferManager manager, int requestedPort, String passkey) throws SocketException {
         this.myPasskey = passkey;
-        this.socket = new DatagramSocket(requestedPort);
+        // Use TransportManager to create transport. For now fixed UDP for receiver
+        // listening.
+        // Bluetooth listener would need separate thread/transport.
+        this.transport = TransportManager.getInstance().createTransport("UDP"); // Default to UDP
+        try {
+            this.transport.bind(requestedPort);
+        } catch (IOException e) {
+            throw new SocketException(e.getMessage());
+        }
 
-        // Print actual port
-        System.out.println("[DEBUG] FileReceiver listening on " + socket.getLocalPort() + " | Passkey: " + myPasskey);
+        System.out.println("[DEBUG] FileReceiver listening on " + requestedPort);
 
         this.fileSender = new FileSender(manager);
         startReceivingLoop();
     }
 
     public int getPort() {
-        return socket.getLocalPort();
+        // Transport abstraction doesn't easily expose local port if bind() logic
+        // varies.
+        // But for UDP we might need it. Transport interface needs getLocalPort() if
+        // generic.
+        // Or we cast.
+        if (transport instanceof org.file.transfer.transport.TransportUDP udp) {
+            return udp.getSocket().getLocalPort();
+        }
+        return 0;
     }
 
     public void close() {
-        if (socket != null && !socket.isClosed()) {
-            socket.close();
+        try {
+            transport.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     private void startReceivingLoop() {
         new Thread(() -> {
-            byte[] buffer = new byte[BUFFER_SIZE];
-            while (!socket.isClosed()) {
+            while (transport.isBound()) {
                 try {
-                    DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                    socket.receive(packet);
-                    String senderIp = packet.getAddress().getHostAddress();
+                    byte[] data = transport.receive();
+                    String senderIp = transport.getLastSenderAddress();
+                    int senderPort = transport.getLastSenderPort();
 
-                    // 1. Check Payload Type
-                    // We assume Object stream for FilePackets, but String for commands?
-                    // Old protocol used mixed. Let's try to peek or just handle exceptions.
-                    // Or we can assume everything is object? No, Handshake was string.
-                    // Simple heuristic: If it starts with text "PING" or "AUTH", it is string.
-                    // But `FilePacket` is binary.
-
-                    // Let's try to read as string first if short
+                    // Heuristic: Check if Command (String) or Data (Object)
+                    // Packets < 1024 bytes and starting with known prefixes are commands
                     boolean handled = false;
-                    if (packet.getLength() < 1024) { // Commands are short
-                        String msg = new String(packet.getData(), 0, packet.getLength());
-                        if (handleCommand(msg, packet)) {
-                            handled = true;
+                    if (data.length < 1024) {
+                        try {
+                            String msg = new String(data).trim(); // trim to remove nulls if any
+                            if (handleCommand(msg, senderIp, senderPort)) {
+                                handled = true;
+                            }
+                        } catch (Exception e) {
+                            // Not a string or command
                         }
                     }
 
                     if (!handled) {
-                        handleDataPacket(packet, senderIp);
+                        handleDataPacket(data, senderIp, senderPort);
                     }
 
-                } catch (SocketException e) {
-                    if (socket.isClosed())
-                        break;
                 } catch (Exception e) {
+                    if (!transport.isBound())
+                        break;
                     e.printStackTrace();
                 }
             }
         }).start();
     }
 
-    private boolean handleCommand(String msg, DatagramPacket packet) throws IOException {
-        String senderIp = packet.getAddress().getHostAddress();
-
-        // PING
+    private boolean handleCommand(String msg, String senderIp, int senderPort) throws IOException {
         if (msg.startsWith("PING_FROM_P2P_APP")) {
-            sendString("PONG_FROM_P2P_APP_OK", packet.getAddress(), packet.getPort());
+            transport.sendTo("PONG_FROM_P2P_APP_OK".getBytes(), senderIp, senderPort);
             return true;
         }
 
-        // AUTH
         if (msg.startsWith("AUTH_REQUEST:")) {
             String receivedPasskey = msg.split(":")[1];
             if (this.myPasskey.equals(receivedPasskey)) {
                 authenticatedIps.add(senderIp);
-                sendString("AUTH_RESPONSE:OK", packet.getAddress(), packet.getPort());
+                transport.sendTo("AUTH_RESPONSE:OK".getBytes(), senderIp, senderPort);
                 System.out.println("[Receiver] Auth SUCCESS for " + senderIp);
             } else {
-                sendString("AUTH_RESPONSE:FAIL", packet.getAddress(), packet.getPort());
+                transport.sendTo("AUTH_RESPONSE:FAIL".getBytes(), senderIp, senderPort);
                 System.out.println("[Receiver] Auth FAILED for " + senderIp);
             }
             return true;
         }
 
-        // FILE INFO REQUEST (For Resume)
+        // RESUME REQUEST V2
         // FORMAT: FILE_REQ:<chksum>:<totalPackets>:<fileName>
         if (msg.startsWith("FILE_REQ:")) {
             if (!authenticatedIps.contains(senderIp) && !SettingsManager.getInstance().isAllowExternal()) {
-                // Ignore if strict
+                // Ignore
+                return true;
             }
-            // Parse
-            String[] parts = msg.split(":", 4); // limit 4 to keep filename safe
+            String[] parts = msg.split(":", 4);
             if (parts.length >= 3) {
                 String fileName = parts[3];
-                // Check if we have progress
-                BitSet progress = loadProgress(fileName);
-                if (progress == null) {
-                    sendString("FILE_ACK:START", packet.getAddress(), packet.getPort());
-                    // Init new progress
-                    transferProgress.put(fileName, new BitSet());
+                int totalPackets = Integer.parseInt(parts[2]);
+
+                BitSet received = blockManager.getReceivedBlocks(fileName);
+
+                if (received.isEmpty()) {
+                    transport.sendTo("FILE_ACK:START".getBytes(), senderIp, senderPort);
                 } else {
-                    // Send existing bitmap
-                    // Compressed format? For now just say "RESUME" and let sender query?
-                    // Or send "FILE_ACK:RESUME:<base64_bitmap>"?
-                    // BitSet Serializable.
-                    sendBitmap(progress, packet.getAddress(), packet.getPort());
+                    // Send MISSING_BLOCKS (Compressed? Or just the BitSet object)
+                    // Implementation: Send BitSet object.
+                    sendBitmap(received, senderIp, senderPort);
                 }
             }
             return true;
         }
 
-        // FOLDER MANIFEST START
-        // Just treated as a file with special name usually?
-        // Or we handle ".manifest" extension in handleDataPacket.
-
         return false;
     }
 
-    private void handleDataPacket(DatagramPacket packet, String senderIp) {
+    private void handleDataPacket(byte[] data, String senderIp, int senderPort) {
         if (!authenticatedIps.contains(senderIp))
-            return; // Security
+            return;
 
         try {
-            ObjectInputStream ois = new ObjectInputStream(
-                    new ByteArrayInputStream(packet.getData(), 0, packet.getLength()));
+            ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));
             Object obj = ois.readObject();
 
             if (obj instanceof FilePacket fp) {
-                // Send MSG ACK (UDP reliability)
-                // We Ack every packet? Or window?
-                // Old code acked every packet.
-                fileSender.sendAck(fp.packetId(), packet.getAddress(), packet.getPort());
-
+                // Send Ack
+                fileSender.sendAck(fp.packetId(), senderIp, senderPort);
                 processFilePacket(fp);
             }
 
         } catch (Exception e) {
-            // Not an object packet, maybe ignored
+            // e.printStackTrace();
         }
     }
 
@@ -168,34 +167,23 @@ public class FileReceiver {
 
             File outputFile = new File(dir, fp.fileName());
 
-            // If manifest file
-            if (fp.fileName().endsWith(".manifest")) {
-                // Write manifest memory/disk
-                // Actually we treat it as normal file, then parse it when done?
-                // Let's just write it.
-            }
-
-            if (fp.packetId() == 0 && !outputFile.exists()) {
-                outputFile.createNewFile();
-            }
+            // Check block manager first
+            BitSet received = blockManager.getReceivedBlocks(fp.fileName());
+            if (received.get(fp.packetId()))
+                return; // Duplicate
 
             try (RandomAccessFile raf = new RandomAccessFile(outputFile, "rw")) {
-                long offset = (long) fp.packetId() * 60000; // 60KB payload assumption (needs sync with Sender)
+                long offset = (long) fp.packetId() * 60000;
                 raf.seek(offset);
                 raf.write(fp.data());
             }
 
-            // Update Progress
-            BitSet bs = transferProgress.computeIfAbsent(fp.fileName(), k -> new BitSet());
-            bs.set(fp.packetId());
-            saveProgress(fp.fileName(), bs);
+            blockManager.markBlockReceived(fp.fileName(), fp.packetId(), fp.totalPackets());
 
-            if (fp.isLast()) {
+            if (blockManager.isComplete(fp.fileName(), fp.totalPackets())) {
                 System.out.println("[Receiver] File complete: " + fp.fileName());
-                transferProgress.remove(fp.fileName());
-                new File(fp.fileName() + ".meta").delete();
+                blockManager.cleanup(fp.fileName());
 
-                // If it was a manifest, process it
                 if (fp.fileName().endsWith(".manifest")) {
                     processManifest(outputFile);
                 }
@@ -207,7 +195,6 @@ public class FileReceiver {
     }
 
     private void processManifest(File manifestFile) {
-        // Read manifest, create folders
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(manifestFile))) {
             FolderManifest manifest = (FolderManifest) ois.readObject();
             String baseDir = SettingsManager.getInstance().getDownloadDirectory();
@@ -216,87 +203,25 @@ public class FileReceiver {
 
             for (FolderManifest.ManifestItem item : manifest.getItems()) {
                 File f = new File(root, item.relativePath());
-                if (item.size() == 0) { // logic for empty folder?
-                    // ManifestItem only has file.
-                    // But we should Create parent dirs
-                    f.getParentFile().mkdirs();
-                } else {
-                    f.getParentFile().mkdirs();
-                }
+                f.getParentFile().mkdirs();
             }
-            // We don't need to create empty files, sender will send them.
-            // Just structure.
             System.out.println("[Receiver] Directory structure created for " + manifest.getRootFolderName());
+            // Note: Files inside come as separate packets
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void sendString(String msg, InetAddress addr, int port) {
-        try {
-            byte[] data = msg.getBytes();
-            DatagramPacket packet = new DatagramPacket(data, data.length, addr, port);
-            socket.send(packet);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void sendBitmap(BitSet bs, InetAddress addr, int port) {
+    private void sendBitmap(BitSet bs, String ip, int port) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(baos);
             oos.writeObject(bs);
             oos.close();
             byte[] raw = baos.toByteArray();
-
-            // We need to wrap it so sender knows it's a bitmap?
-            // Or Sender expects it after FILE_REQ.
-            // Let's wrap in a specific object or just send raw if sender waits for object.
-            // Sender waits for "ACK string" usually.
-            // Let's change protocol: Receiver sends "FILE_ACK:RESUME" string, Sender asks
-            // for Bitmap?
-            // BETTER: Embed in object.
-            // Let's just use Java Serialization for the BitSet and let Sender readObject().
-
-            DatagramPacket packet = new DatagramPacket(raw, raw.length, addr, port);
-            socket.send(packet);
-
+            transport.sendTo(raw, ip, port);
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    // Persistence logic
-    private void saveProgress(String fileName, BitSet bs) {
-        // Save to .meta file occasionally?
-        // Doing it every packet is slow.
-        // Maybe every 100 packets?
-        // For simplicity, we skip full persistence on every packet for now, rely on
-        // memory.
-        // Real persistence:
-        /*
-         * try (ObjectOutputStream oos = new ObjectOutputStream(new
-         * FileOutputStream(fileName + ".meta"))) {
-         * oos.writeObject(bs);
-         * } catch (Exception e) {}
-         */
-    }
-
-    private BitSet loadProgress(String fileName) {
-        // Check memory
-        if (transferProgress.containsKey(fileName))
-            return transferProgress.get(fileName);
-
-        // Check disk
-        File meta = new File(fileName + ".meta");
-        if (meta.exists()) {
-            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(meta))) {
-                return (BitSet) ois.readObject();
-            } catch (Exception e) {
-                return null;
-            }
-        }
-        return null;
     }
 }

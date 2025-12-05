@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.HBox?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+      fx:controller="org.file.transfer.controller.FileReceiveStatusController"
+      spacing="10" style="-fx-padding: 20;">
+
+    <Label text="Incoming Transfers" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
+    
+    <ListView fx:id="listTransfers" VBox.vgrow="ALWAYS"/>
+    
+    <HBox spacing="10">
+        <Label text="Overall Status:"/>
+        <Label fx:id="lblOverallStatus" text="Listening..."/>
+    </HBox>
+</VBox>

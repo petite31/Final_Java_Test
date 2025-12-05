@@ -4,6 +4,8 @@ import org.file.transfer.controller.SendFilesController;
 import org.file.transfer.model.FilePacket;
 import org.file.transfer.model.FolderManifest;
 import org.file.transfer.model.TransferStats;
+import org.file.transfer.transport.Transport;
+import org.file.transfer.transport.TransportManager;
 
 import java.io.*;
 import java.net.*;
@@ -12,30 +14,53 @@ import java.util.Stack;
 
 public class FileSender {
     private final TransferManager manager;
-    private final DatagramSocket socket;
+    private Transport transport;
 
-    private static final int PACKET_SIZE = 60000; // Payload size
+    private static final int PACKET_SIZE = 60000;
 
     public FileSender(TransferManager manager) throws SocketException {
         this.manager = manager;
-        this.socket = new DatagramSocket();
+        // Ideally sender uses the same transport manager.
+        // If we want to connect to a specific transport mechanism, we should ask
+        // TransportManager.
+        // For UDP default:
+        this.transport = TransportManager.getInstance().createTransport("UDP");
     }
 
     public boolean performHandshake(String ip, int port, String passkey) {
         try {
-            socket.setSoTimeout(3000);
+            // Using Transport for handshake
+            // Auth is simple string exchange
             String authMsg = "AUTH_REQUEST:" + passkey;
-            InetAddress address = InetAddress.getByName(ip);
+            transport.sendTo(authMsg.getBytes(), ip, port);
 
-            DatagramPacket packet = new DatagramPacket(
-                    authMsg.getBytes(), authMsg.length(), address, port);
-            socket.send(packet);
+            // Wait for response?
+            // Transport.receive() is blocking.
+            // We need a timeout logic. Transport interface doesn't strictly imply timeouts
+            // on receive().
+            // But UDP transport implementation uses DatagramSocket which can have timeouts.
+            // If we cast to UDP, we can set it.
+            // Better to wrap in thread or Future?
+            // For now, let's assume Transport operations are blocking and we rely on socket
+            // timeout if underlying supports it.
+            // Or we check `receive()` loop in separate thread?
+            // Handshake is synchronous here.
 
-            byte[] buf = new byte[256];
-            DatagramPacket resp = new DatagramPacket(buf, buf.length);
-            socket.receive(resp);
+            // NOTE: TransportUDP as implemented in step 148 receives indiscriminately.
+            // If we use the SAME transport instance for shared listening, we might steal
+            // packets?
+            // FileSender usually creates its own socket (ephemeral).
+            // FileReceiver has its own bound socket.
+            // So it's fine.
 
-            String reply = new String(resp.getData(), 0, resp.getLength());
+            if (transport instanceof org.file.transfer.transport.TransportUDP udp) {
+                udp.getSocket().setSoTimeout(3000);
+            }
+
+            byte[] response = transport.receive(); // Blocks
+            String reply = new String(response).trim();
+            // Check sender ip? transport.getLastSenderAddress()
+
             return reply.equals("AUTH_RESPONSE:OK");
 
         } catch (Exception e) {
@@ -54,12 +79,9 @@ public class FileSender {
 
     private void sendFolder(File folder, String targetIp, int targetPort, SendFilesController callback) {
         try {
-            // 1. Build Manifest
             FolderManifest manifest = new FolderManifest(folder.getName());
             Stack<File> stack = new Stack<>();
             stack.push(folder);
-
-            // Just for recursive scan
             int rootPathLen = folder.getParentFile().getAbsolutePath().length();
 
             while (!stack.isEmpty()) {
@@ -67,9 +89,9 @@ public class FileSender {
                 File[] files = current.listFiles();
                 if (files != null) {
                     for (File f : files) {
-                        String relPath = f.getAbsolutePath().substring(rootPathLen + 1); // +1 for separator
+                        String relPath = f.getAbsolutePath().substring(rootPathLen + 1);
                         if (f.isDirectory()) {
-                            manifest.addItem(relPath, 0, 0); // Directory
+                            manifest.addItem(relPath, 0, 0);
                             stack.push(f);
                         } else {
                             manifest.addItem(relPath, f.length(), f.lastModified());
@@ -78,19 +100,15 @@ public class FileSender {
                 }
             }
 
-            // 2. Serialize Manifest to temp file
             File tempManifest = File.createTempFile("manifest", ".manifest");
             try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(tempManifest))) {
                 oos.writeObject(manifest);
             }
 
-            // 3. Send Manifest (as special file)
             sendFileInternal(tempManifest, targetIp, targetPort, callback, folder.getName() + ".manifest");
             tempManifest.delete();
 
-            // 4. Send Files
-            stack.push(folder); // Reuse stack for traversal
-
+            stack.push(folder);
             while (!stack.isEmpty()) {
                 File current = stack.pop();
                 File[] files = current.listFiles();
@@ -100,15 +118,6 @@ public class FileSender {
                             stack.push(f);
                         } else {
                             String relPath = f.getAbsolutePath().substring(rootPathLen + 1);
-                            // We can send file with name as relPath so receiver knows structure?
-                            // Actually, receiver just processes files.
-                            // But if we send "sub/foo.txt", standard logic might flatten it if we don't
-                            // handle paths?
-                            // The receiver logic `new File(dir, fp.fileName())` creates file in root
-                            // download dir.
-                            // WE NEED TO SEND RELATIVE PATH as filename!
-                            // Receiver uses `fp.fileName()` which is `String`.
-                            // So we send relative path.
                             sendFileInternal(f, targetIp, targetPort, callback, folder.getName() + "/" + relPath);
                         }
                     }
@@ -132,36 +141,29 @@ public class FileSender {
     private void sendFileInternal(File file, String targetIp, int targetPort, SendFilesController callback,
             String remoteFileName) {
         try {
-            InetAddress address = InetAddress.getByName(targetIp);
             long fileSize = file.length();
             int totalPackets = (int) Math.ceil(fileSize / (double) PACKET_SIZE);
             if (totalPackets == 0)
-                totalPackets = 1; // Empty file
+                totalPackets = 1;
 
             // 1. Send FILE_REQ
-            // msg: FILE_REQ:<chksum>:<totalPackets>:<fileName>
-            // We use timestamp as checksum for simple logic
             String req = "FILE_REQ:" + file.lastModified() + ":" + totalPackets + ":" + remoteFileName;
-            DatagramPacket reqPkt = new DatagramPacket(req.getBytes(), req.length(), address, targetPort);
 
             BitSet receivedBlocks = new BitSet(totalPackets);
             boolean handshakeDone = false;
 
-            for (int i = 0; i < 5; i++) { // Resize 5 times
-                socket.send(reqPkt);
-                socket.setSoTimeout(2000);
+            for (int i = 0; i < 5; i++) {
+                transport.sendTo(req.getBytes(), targetIp, targetPort);
                 try {
-                    byte[] buf = new byte[65000]; // Large buffer for bitmap
-                    DatagramPacket resp = new DatagramPacket(buf, buf.length);
-                    socket.receive(resp);
+                    // Wait for response
+                    if (transport instanceof org.file.transfer.transport.TransportUDP udp) {
+                        udp.getSocket().setSoTimeout(2000);
+                    }
 
-                    // Possible responses:
-                    // String: "FILE_ACK:START"
-                    // Object: BitSet
+                    byte[] respData = transport.receive();
 
                     try {
-                        ObjectInputStream ois = new ObjectInputStream(
-                                new ByteArrayInputStream(resp.getData(), 0, resp.getLength()));
+                        ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(respData));
                         Object obj = ois.readObject();
                         if (obj instanceof BitSet) {
                             receivedBlocks = (BitSet) obj;
@@ -171,10 +173,9 @@ public class FileSender {
                             break;
                         }
                     } catch (Exception ex) {
-                        // Not an object, maybe string
-                        String s = new String(resp.getData(), 0, resp.getLength());
+                        String s = new String(respData).trim();
                         if (s.startsWith("FILE_ACK:START")) {
-                            handshakeDone = true; // Nothing received yet
+                            handshakeDone = true;
                             break;
                         }
                     }
@@ -188,23 +189,20 @@ public class FileSender {
                 return;
             }
 
-            // 2. Send Missing Blocks
             TransferStats stats = new TransferStats(fileSize);
-            // Pre-calculate transferred bytes
             stats.update(receivedBlocks.cardinality() * PACKET_SIZE);
 
             try (RandomAccessFile raf = new RandomAccessFile(file, "r")) {
                 for (int packetId = 0; packetId < totalPackets; packetId++) {
                     if (receivedBlocks.get(packetId))
-                        continue; // Skip if already received
+                        continue;
 
                     raf.seek((long) packetId * PACKET_SIZE);
                     byte[] buffer = new byte[PACKET_SIZE];
                     int bytesRead = raf.read(buffer);
                     if (bytesRead == -1)
-                        break; // Should not happen if size is correct
+                        break;
 
-                    // Trim if last packet
                     byte[] data = (bytesRead == PACKET_SIZE) ? buffer : java.util.Arrays.copyOf(buffer, bytesRead);
 
                     FilePacket packet = new FilePacket(
@@ -215,10 +213,8 @@ public class FileSender {
                             totalPackets,
                             packetId == totalPackets - 1);
 
-                    // Send with ACK (Reliability)
-                    sendPacketReliable(packet, address, targetPort);
+                    sendPacketReliable(packet, targetIp, targetPort);
 
-                    // Update Stats
                     stats.update((long) packetId * PACKET_SIZE + bytesRead);
                     if (callback != null && (packetId % 5 == 0 || packet.isLast())) {
                         callback.updateProgress(stats.getProgress(), stats.getCurrentSpeedMBs(),
@@ -232,48 +228,49 @@ public class FileSender {
         }
     }
 
-    private void sendPacketReliable(FilePacket packetData, InetAddress address, int port) throws IOException {
-        // Serialize
+    private void sendPacketReliable(FilePacket packetData, String targetIp, int port) throws IOException {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(baos);
         oos.writeObject(packetData);
         oos.close();
         byte[] raw = baos.toByteArray();
-        DatagramPacket dp = new DatagramPacket(raw, raw.length, address, port);
 
         boolean ack = false;
         int retry = 0;
         while (!ack && retry < 5) {
-            socket.send(dp);
-            socket.setSoTimeout(500); // 500ms timeout for ACK
+            transport.sendTo(raw, targetIp, port);
+
+            if (transport instanceof org.file.transfer.transport.TransportUDP udp) {
+                udp.getSocket().setSoTimeout(500);
+            }
+
             try {
-                byte[] ackBuf = new byte[64];
-                DatagramPacket ackPkt = new DatagramPacket(ackBuf, ackBuf.length);
-                socket.receive(ackPkt);
-                String msg = new String(ackPkt.getData(), 0, ackPkt.getLength());
+                byte[] ackBuf = transport.receive();
+                String msg = new String(ackBuf).trim();
                 if (msg.startsWith("ACK_" + packetData.packetId())) {
                     ack = true;
                 }
-                // Ignore other ACKs (old ones)
             } catch (SocketTimeoutException e) {
                 retry++;
             }
         }
     }
 
-    public void sendAck(int packetId, InetAddress address, int port) {
+    public void sendAck(int packetId, String ip, int port) {
         try {
             String ackMsg = "ACK_" + packetId;
-            DatagramPacket packet = new DatagramPacket(
-                    ackMsg.getBytes(), ackMsg.length(), address, port);
-            socket.send(packet);
+            transport.sendTo(ackMsg.getBytes(), ip, port);
         } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     public void close() {
-        if (socket != null && !socket.isClosed()) {
-            socket.close();
+        try {
+            if (transport != null)
+                transport.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
