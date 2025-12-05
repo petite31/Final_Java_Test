@@ -65,7 +65,8 @@ public class LanDiscoveryController {
     private void connectToPeer() {
         PeerInfo selected = tablePeers.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            MainLayoutController.getInstance().showSendWithPeer(selected.getIp());
+            String passkey = org.file.transfer.service.PasskeyManager.getInstance().getCurrentPasskey();
+            MainLayoutController.getInstance().showSendWithPeer(selected.getIp(), passkey);
         }
     }
 }

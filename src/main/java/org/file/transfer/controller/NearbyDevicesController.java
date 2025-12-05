@@ -67,8 +67,8 @@ public class NearbyDevicesController {
     private void connectToPeer() {
         PeerInfo selected = tablePeers.getSelectionModel().getSelectedItem();
         if (selected != null) {
-             // Always UDP
-             
+            // Always UDP
+
             // Generate Passkey if not valid
             if (!PasskeyManager.getInstance().isValid()) {
                 PasskeyManager.getInstance().generateNewPasskey();
@@ -151,11 +151,12 @@ public class NearbyDevicesController {
 
             // I will finish this controller then Fix DiscoveryService.
 
-            discoveryService.sendPasskeyRequest(selected.getIp(), selected.getName()); // We use name as dummy key if we
-                                                                                       // don't have it?
-            // Actually, I'll update DiscoveryService to Bcast key.
+            discoveryService.sendPasskeyRequest(selected.getIp(), selected.getName());
 
-            MainLayoutController.getInstance().showSendWithPeer(selected.getIp());
+            // Navigate immediately (user already initiated connection)
+            // The actual passkey exchange happens in background
+            String passkey = PasskeyManager.getInstance().getCurrentPasskey();
+            MainLayoutController.getInstance().showSendWithPeer(selected.getIp(), passkey);
             // We should wait for ACCEPT?
             // "When a peer receives PASSKEY_ACCEPT... auto-fill... then initiate".
             // So B stays on Nearby screen until ACCEPT? Or shows "Connecting..."?

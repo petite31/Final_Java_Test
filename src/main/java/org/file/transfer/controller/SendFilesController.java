@@ -152,4 +152,10 @@ public class SendFilesController {
             tfIp.setText(ip);
         }
     }
+
+    public void setPasskey(String passkey) {
+        if (tfPasskey != null) {
+            tfPasskey.setText(passkey);
+        }
+    }
 }

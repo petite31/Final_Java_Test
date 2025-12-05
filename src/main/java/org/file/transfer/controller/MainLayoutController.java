@@ -51,8 +51,7 @@ public class MainLayoutController {
 
             // Auto-navigate on Passkey acceptance
             DiscoveryService.getInstance().setOnPasskeyAccepted((ip, passkey) -> {
-                showSendWithPeer(ip);
-                // TODO: pre-fill passkey
+                showSendWithPeer(ip, passkey);
             });
         } catch (IllegalStateException e) {
             // Service not started yet, ignore
