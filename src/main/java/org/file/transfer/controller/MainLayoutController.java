@@ -84,14 +84,14 @@ public class MainLayoutController {
         loadView("Settings.fxml", null);
     }
 
-    public void showSendWithPeer(String ip) {
+    public void showSendWithPeer(String ip, String passkey) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/file/transfer/view/SendFiles.fxml"));
             Parent view = loader.load();
 
             SendFilesController controller = loader.getController();
             controller.setRecipientIp(ip);
-            // TODO: controller.setPasskey(passkey);
+            controller.setPasskey(passkey);
 
             contentArea.setCenter(view);
         } catch (IOException e) {
