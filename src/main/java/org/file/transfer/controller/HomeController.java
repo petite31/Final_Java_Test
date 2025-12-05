@@ -45,9 +45,6 @@ public class HomeController {
 
     @FXML
     private void generateNewPasskey() {
-        // In a real app, call service to regenerate.
-        // For now, we just refresh the display assuming service might have changed it
-        // or we implement it later.
         TransferService.getInstance().regeneratePasskey();
         lblPasskey.setText(TransferService.getInstance().getMyPasskey());
     }

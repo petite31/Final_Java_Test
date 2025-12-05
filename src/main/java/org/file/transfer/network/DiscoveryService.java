@@ -110,7 +110,9 @@ public class DiscoveryService {
         // FORMAT:
         // DISCOVER_PEER_REQUEST|<deviceName>|<listeningPort>|<mechanism>|<passkey>
         // V3: Mechanism is always UDP.
-        String passkey = "DEFAULT";
+        String passkey = org.file.transfer.service.TransferService.getInstance().getMyPasskey();
+        if (passkey == null)
+            passkey = "DEFAULT";
         String msg = "DISCOVER_PEER_REQUEST|" + deviceName + "|" + fileTransferPort + "|UDP|" + passkey;
         sendUdp(msg, BROADCAST_Address, DISCOVERY_PORT);
     }
@@ -191,7 +193,11 @@ public class DiscoveryService {
                 Runnable acceptAction = () -> {
                     // No passkey check needed anymore, just accept.
                     System.out.println("[Discovery] User approved connection from " + requesterName);
-                    String reply = "PASSKEY_ACCEPT|" + deviceName + "|" + attemptKey;
+                    String myKey = org.file.transfer.service.TransferService.getInstance().getMyPasskey();
+                    if (myKey == null)
+                        myKey = "DEFAULT";
+
+                    String reply = "PASSKEY_ACCEPT|" + deviceName + "|" + myKey;
                     sendUdp(reply, senderIp, senderDiscoveryPort);
                 };
 
@@ -205,6 +211,7 @@ public class DiscoveryService {
             String acceptorName = parts[1];
             String acceptedKey = parts[2];
             System.out.println("[Discovery] Passkey accepted by " + acceptorName);
+            System.out.println("[Discovery] Accepted by " + acceptedKey);
 
             if (onPasskeyAccepted != null) {
                 Platform.runLater(() -> onPasskeyAccepted.accept(senderIp, acceptedKey));
@@ -215,7 +222,9 @@ public class DiscoveryService {
     private void sendResponse(String targetIp, int targetPort) {
         try {
             String myIp = InetAddress.getLocalHost().getHostAddress();
-            String passkey = "DEFAULT";
+            String passkey = org.file.transfer.service.TransferService.getInstance().getMyPasskey();
+            if (passkey == null)
+                passkey = "DEFAULT";
             // DISCOVER_PEER_RESPONSE|<deviceName>|<myIp>|<fileTransferPort>|<mechanism>|<passkey>
             String msg = "DISCOVER_PEER_RESPONSE|" + deviceName + "|" + myIp + "|" + fileTransferPort + "|UDP|"
                     + passkey;
