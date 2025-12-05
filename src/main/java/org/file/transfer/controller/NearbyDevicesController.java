@@ -69,20 +69,6 @@ public class NearbyDevicesController {
         if (selected != null) {
             // Always UDP
 
-            // Send PASSKEY_REQUEST
-            // DiscoveryService sends: PASSKEY_REQUEST|<me>|<passkey>|<port>
-            // Peer should display it or auto-accept if they have matching logic (or user
-            // types it)
-            // Wait, requirements say: "Auto-fill IP + passkey on peer acceptance"
-            // So we send REQUEST. Logic:
-            // 1. Sender click "Connect"
-            // 2. Sender generates passkey (if not exist) -> Shows to user "Tell peer your
-            // passkey: XXXXX"
-            // 3. Sends PASSKEY_REQUEST to Peer with this key.
-            // 4. Peer receives REQUEST. Peer checks if they have matching key input?
-            // Wait, "PASSKEY_ACCEPT ... automatically extract sender IP ... auto-fill"
-            // This implies the User actions are:
-            // User A (Receiver): Opens app. Passkey is generated/displayed? Requirements
             // says "Display it... Broadcast...".
             // User B (Sender): Sees Peer A. Connects.
             // Scenario 1: B types A's passkey?
