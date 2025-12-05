@@ -107,9 +107,11 @@ public class DiscoveryService {
     }
 
     private void broadcastPresence() {
-        // FORMAT: DISCOVER_PEER_REQUEST|<deviceName>|<listeningPort>|<mechanism>
+        // FORMAT:
+        // DISCOVER_PEER_REQUEST|<deviceName>|<listeningPort>|<mechanism>|<passkey>
         // V3: Mechanism is always UDP.
-        String msg = "DISCOVER_PEER_REQUEST|" + deviceName + "|" + fileTransferPort + "|UDP";
+        String passkey = PasskeyManager.getInstance().isValid() ? PasskeyManager.getInstance().getCurrentPasskey() : "";
+        String msg = "DISCOVER_PEER_REQUEST|" + deviceName + "|" + fileTransferPort + "|UDP|" + passkey;
         sendUdp(msg, BROADCAST_Address, DISCOVERY_PORT);
     }
 
@@ -167,15 +169,17 @@ public class DiscoveryService {
             String peerName = parts[1];
             int peerTransferPort = Integer.parseInt(parts[2]);
             String mech = parts.length > 3 ? parts[3] : "UDP";
+            String passkey = parts.length > 4 ? parts[4] : "";
 
-            updatePeer(peerName, senderIp, peerTransferPort, mech);
+            updatePeer(peerName, senderIp, peerTransferPort, mech, passkey);
             sendResponse(senderIp, senderDiscoveryPort);
         } else if ("DISCOVER_PEER_RESPONSE".equals(type) && parts.length >= 4) {
             String peerName = parts[1];
             int peerTransferPort = Integer.parseInt(parts[3]);
             String mech = parts.length > 4 ? parts[4] : "UDP";
+            String passkey = parts.length > 5 ? parts[5] : "";
 
-            updatePeer(peerName, senderIp, peerTransferPort, mech);
+            updatePeer(peerName, senderIp, peerTransferPort, mech, passkey);
         } else if ("PASSKEY_REQUEST".equals(type) && parts.length >= 4) {
             // PASSKEY_REQUEST|<deviceName>|<passkey>|<listeningPort>
             String requesterName = parts[1];
@@ -217,27 +221,44 @@ public class DiscoveryService {
     private void sendResponse(String targetIp, int targetPort) {
         try {
             String myIp = InetAddress.getLocalHost().getHostAddress();
-            String msg = "DISCOVER_PEER_RESPONSE|" + deviceName + "|" + myIp + "|" + fileTransferPort + "|UDP";
+            String passkey = PasskeyManager.getInstance().isValid() ? PasskeyManager.getInstance().getCurrentPasskey()
+                    : "";
+            // DISCOVER_PEER_RESPONSE|<deviceName>|<myIp>|<fileTransferPort>|<mechanism>|<passkey>
+            String msg = "DISCOVER_PEER_RESPONSE|" + deviceName + "|" + myIp + "|" + fileTransferPort + "|UDP|"
+                    + passkey;
             sendUdp(msg, targetIp, targetPort);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void updatePeer(String name, String ip, int port, String mech) {
+    private void updatePeer(String name, String ip, int port, String mech, String passkey) {
         String key = ip + ":" + port;
         PeerInfo info = peerMap.get(key);
 
         if (info == null) {
             info = new PeerInfo(name, ip, port);
-            // TODO: Add mechanism to PeerInfo model
-            // For now we just store it or log it
+            info.setMechanism(mech);
+            info.setPasskey(passkey);
             peerMap.put(key, info);
             PeerInfo finalInfo = info;
             Platform.runLater(() -> activePeers.add(finalInfo));
         } else {
             info.updateLastSeen();
+            info.setPasskey(passkey);
         }
+    }
+
+    public void sendConnectionRequest(String ip) {
+        // Find the peer info to get the passkey
+        String passkey = "";
+        for (PeerInfo p : activePeers) {
+            if (p.getIp().equals(ip)) {
+                passkey = p.getPasskey();
+                break;
+            }
+        }
+        sendPasskeyRequest(ip, passkey);
     }
 
     private void cleanupPeers() {

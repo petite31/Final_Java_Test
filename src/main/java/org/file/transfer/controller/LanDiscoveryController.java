@@ -65,8 +65,14 @@ public class LanDiscoveryController {
     private void connectToPeer() {
         PeerInfo selected = tablePeers.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            String passkey = org.file.transfer.service.PasskeyManager.getInstance().getCurrentPasskey();
-            MainLayoutController.getInstance().showSendWithPeer(selected.getIp(), passkey);
+            btnConnect.setDisable(true);
+            btnConnect.setText("Waiting...");
+
+            // Send Connection Request
+            discoveryService.sendConnectionRequest(selected.getIp());
+
+            // We do NOT navigate here. We wait for CONNECTION_ACCEPT which triggers
+            // MainLayoutController to navigate.
         }
     }
 }

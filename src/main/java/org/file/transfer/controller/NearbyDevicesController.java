@@ -73,7 +73,6 @@ public class NearbyDevicesController {
             if (!PasskeyManager.getInstance().isValid()) {
                 PasskeyManager.getInstance().generateNewPasskey();
             }
-            String myPasskey = PasskeyManager.getInstance().getCurrentPasskey();
 
             // Send PASSKEY_REQUEST
             // DiscoveryService sends: PASSKEY_REQUEST|<me>|<passkey>|<port>
@@ -149,23 +148,12 @@ public class NearbyDevicesController {
             // But Req says "auto-fill", implying no prompt.
             // So I MUST Broadcast it.
 
-            // I will finish this controller then Fix DiscoveryService.
+            // Send Connection Request
+            discoveryService.sendConnectionRequest(selected.getIp());
 
-            discoveryService.sendPasskeyRequest(selected.getIp(), selected.getName());
-
-            // Navigate immediately (user already initiated connection)
-            // The actual passkey exchange happens in background
-            String passkey = PasskeyManager.getInstance().getCurrentPasskey();
-            MainLayoutController.getInstance().showSendWithPeer(selected.getIp(), passkey);
-            // We should wait for ACCEPT?
-            // "When a peer receives PASSKEY_ACCEPT... auto-fill... then initiate".
-            // So B stays on Nearby screen until ACCEPT? Or shows "Connecting..."?
-            // I'll add a simple Loading/Status indicator?
-
-            // For now, Direct Navigate is existing behavior.
-            // Desired V2: Auto-connect loop.
-            // I will leave logic here as "Send Request", and DiscoveryService callback
-            // triggers Navigation.
+            // Update UI to indicate waiting
+            btnConnect.setDisable(true);
+            btnConnect.setText("Waiting...");
         }
     }
 }
