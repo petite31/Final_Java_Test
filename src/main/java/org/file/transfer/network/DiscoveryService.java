@@ -110,7 +110,7 @@ public class DiscoveryService {
         // FORMAT:
         // DISCOVER_PEER_REQUEST|<deviceName>|<listeningPort>|<mechanism>|<passkey>
         // V3: Mechanism is always UDP.
-        String passkey = PasskeyManager.getInstance().isValid() ? PasskeyManager.getInstance().getCurrentPasskey() : "";
+        String passkey = "DEFAULT";
         String msg = "DISCOVER_PEER_REQUEST|" + deviceName + "|" + fileTransferPort + "|UDP|" + passkey;
         sendUdp(msg, BROADCAST_Address, DISCOVERY_PORT);
     }
@@ -186,19 +186,13 @@ public class DiscoveryService {
             String attemptKey = parts[2];
             int requesterTransferPort = Integer.parseInt(parts[3]);
 
-            // V3: Instead of auto-validating, trigger approval callback
+            // V3: Simplified without strict passkey check. User just approves.
             if (onConnectionRequested != null) {
                 Runnable acceptAction = () -> {
-                    // Validate passkey
-                    if (PasskeyManager.getInstance().isValid() &&
-                            PasskeyManager.getInstance().getCurrentPasskey().equals(attemptKey)) {
-
-                        System.out.println("[Discovery] User approved connection from " + requesterName);
-                        String reply = "PASSKEY_ACCEPT|" + deviceName + "|" + attemptKey;
-                        sendUdp(reply, senderIp, senderDiscoveryPort);
-                    } else {
-                        System.out.println("[Discovery] Passkey mismatch for " + requesterName);
-                    }
+                    // No passkey check needed anymore, just accept.
+                    System.out.println("[Discovery] User approved connection from " + requesterName);
+                    String reply = "PASSKEY_ACCEPT|" + deviceName + "|" + attemptKey;
+                    sendUdp(reply, senderIp, senderDiscoveryPort);
                 };
 
                 // Trigger UI approval
@@ -221,8 +215,7 @@ public class DiscoveryService {
     private void sendResponse(String targetIp, int targetPort) {
         try {
             String myIp = InetAddress.getLocalHost().getHostAddress();
-            String passkey = PasskeyManager.getInstance().isValid() ? PasskeyManager.getInstance().getCurrentPasskey()
-                    : "";
+            String passkey = "DEFAULT";
             // DISCOVER_PEER_RESPONSE|<deviceName>|<myIp>|<fileTransferPort>|<mechanism>|<passkey>
             String msg = "DISCOVER_PEER_RESPONSE|" + deviceName + "|" + myIp + "|" + fileTransferPort + "|UDP|"
                     + passkey;

@@ -69,11 +69,6 @@ public class NearbyDevicesController {
         if (selected != null) {
             // Always UDP
 
-            // Generate Passkey if not valid
-            if (!PasskeyManager.getInstance().isValid()) {
-                PasskeyManager.getInstance().generateNewPasskey();
-            }
-
             // Send PASSKEY_REQUEST
             // DiscoveryService sends: PASSKEY_REQUEST|<me>|<passkey>|<port>
             // Peer should display it or auto-accept if they have matching logic (or user

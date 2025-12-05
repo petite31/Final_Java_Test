@@ -9,12 +9,7 @@ import javafx.beans.property.StringProperty;
 
 public class PasskeyManager {
     private static PasskeyManager instance;
-    private final StringProperty currentPasskey = new SimpleStringProperty("");
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    private long passkeyExpiryTime = 0;
-
-    // Configurable timeout
-    public static final long PASSKEY_TIMEOUT_SECONDS = 45;
+    private final StringProperty currentPasskey = new SimpleStringProperty("DEFAULT");
 
     private PasskeyManager() {
     }
@@ -27,31 +22,9 @@ public class PasskeyManager {
     }
 
     public void generateNewPasskey() {
-        // SecureRandom for 6 digit alphanumeric
-        SecureRandom random = new SecureRandom();
-        String chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        StringBuilder sb = new StringBuilder(6);
-        for (int i = 0; i < 6; i++) {
-            sb.append(chars.charAt(random.nextInt(chars.length())));
-        }
-        String key = sb.toString();
-
-        System.out.println("[Security] Generated Passkey: " + key);
-
-        javafx.application.Platform.runLater(() -> currentPasskey.set(key));
-        passkeyExpiryTime = System.currentTimeMillis() + (PASSKEY_TIMEOUT_SECONDS * 1000);
-
-        // Schedule auto-expire
-        scheduler.schedule(() -> {
-            if (System.currentTimeMillis() >= passkeyExpiryTime) {
-                ExpirePasskey();
-            }
-        }, PASSKEY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    }
-
-    private void ExpirePasskey() {
-        System.out.println("[Security] Passkey expired");
-        javafx.application.Platform.runLater(() -> currentPasskey.set("EXPIRED"));
+        // No-op: Passkey is no longer used for verification
+        System.out.println("[Security] Passkey generation disabled.");
+        javafx.application.Platform.runLater(() -> currentPasskey.set("DEFAULT"));
     }
 
     public StringProperty currentPasskeyProperty() {
@@ -63,7 +36,6 @@ public class PasskeyManager {
     }
 
     public boolean isValid() {
-        return !currentPasskey.get().isEmpty() && !"EXPIRED".equals(currentPasskey.get())
-                && System.currentTimeMillis() < passkeyExpiryTime;
+        return true;
     }
 }
