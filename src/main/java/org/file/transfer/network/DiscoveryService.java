@@ -29,6 +29,13 @@ public class DiscoveryService {
     private final int fileTransferPort; // Port 6969 usually
 
     private BiConsumer<String, String> onPasskeyAccepted; // (ip, passkey) -> void
+    private TriConsumer<String, String, Runnable> onConnectionRequested; // (senderIp, senderName, acceptCallback) ->
+                                                                         // void
+
+    @FunctionalInterface
+    public interface TriConsumer<T, U, V> {
+        void accept(T t, U u, V v);
+    }
 
     private final ObservableList<PeerInfo> activePeers = FXCollections.observableArrayList();
     private final Map<String, PeerInfo> peerMap = new ConcurrentHashMap<>();
@@ -59,6 +66,10 @@ public class DiscoveryService {
 
     public void setOnPasskeyAccepted(BiConsumer<String, String> callback) {
         this.onPasskeyAccepted = callback;
+    }
+
+    public void setOnConnectionRequested(TriConsumer<String, String, Runnable> callback) {
+        this.onConnectionRequested = callback;
     }
 
     public void start() {
@@ -171,20 +182,25 @@ public class DiscoveryService {
             String attemptKey = parts[2];
             int requesterTransferPort = Integer.parseInt(parts[3]);
 
-            // Validate Passkey
-            if (PasskeyManager.getInstance().isValid() &&
-                    PasskeyManager.getInstance().getCurrentPasskey().equals(attemptKey)) {
+            // V3: Instead of auto-validating, trigger approval callback
+            if (onConnectionRequested != null) {
+                Runnable acceptAction = () -> {
+                    // Validate passkey
+                    if (PasskeyManager.getInstance().isValid() &&
+                            PasskeyManager.getInstance().getCurrentPasskey().equals(attemptKey)) {
 
-                System.out.println("[Discovery] Accepted passkey from " + requesterName);
+                        System.out.println("[Discovery] User approved connection from " + requesterName);
+                        String reply = "PASSKEY_ACCEPT|" + deviceName + "|" + attemptKey;
+                        sendUdp(reply, senderIp, senderDiscoveryPort);
+                    } else {
+                        System.out.println("[Discovery] Passkey mismatch for " + requesterName);
+                    }
+                };
 
-                // Send ACCEPT
-                // PASSKEY_ACCEPT|<deviceName>|<passkey> (Wait, why send passkey back? Just OK
-                // is enough, but user asked for it)
-                // "PASSKEY_ACCEPT|<deviceName>|<passkey>"
-                String reply = "PASSKEY_ACCEPT|" + deviceName + "|" + attemptKey;
-                sendUdp(reply, senderIp, senderDiscoveryPort); // Send back to discovery port
+                // Trigger UI approval
+                Platform.runLater(() -> onConnectionRequested.accept(senderIp, requesterName, acceptAction));
             } else {
-                System.out.println("[Discovery] Denied passkey from " + requesterName);
+                System.out.println("[Discovery] No connection request handler set, denying " + requesterName);
             }
         } else if ("PASSKEY_ACCEPT".equals(type) && parts.length >= 3) {
             // PASSKEY_ACCEPT|<deviceName>|<passkey>

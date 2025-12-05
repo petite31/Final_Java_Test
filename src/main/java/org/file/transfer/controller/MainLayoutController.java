@@ -31,14 +31,28 @@ public class MainLayoutController {
 
         showHome();
 
-        // Auto-navigate on Passkey reception
+        // V3: Connection Approval Callback
         try {
+            DiscoveryService.getInstance().setOnConnectionRequested((senderIp, senderName, acceptAction) -> {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.CONFIRMATION);
+                alert.setTitle("Connection Request");
+                alert.setHeaderText("Incoming Connection");
+                alert.setContentText(senderName + " (" + senderIp + ") wants to connect.\nAllow this connection?");
+
+                alert.showAndWait().ifPresent(response -> {
+                    if (response == javafx.scene.control.ButtonType.OK) {
+                        acceptAction.run();
+                    } else {
+                        System.out.println("[UI] User denied connection from " + senderName);
+                    }
+                });
+            });
+
+            // Auto-navigate on Passkey acceptance
             DiscoveryService.getInstance().setOnPasskeyAccepted((ip, passkey) -> {
                 showSendWithPeer(ip);
-                // We should also pre-fill passkey in the Send controller.
-                // But showSendWithPeer only takes IP.
-                // The SendFilesController will need to be updated or we need a way to pass
-                // passkey.
+                // TODO: pre-fill passkey
             });
         } catch (IllegalStateException e) {
             // Service not started yet, ignore

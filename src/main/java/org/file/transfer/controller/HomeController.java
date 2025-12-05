@@ -16,8 +16,6 @@ public class HomeController {
     private Label lblIp;
     @FXML
     private Label lblHostname;
-    @FXML
-    private Label lblBluetooth;
 
     @FXML
     public void initialize() {
@@ -28,7 +26,6 @@ public class HomeController {
     @FXML
     private void refreshIp() {
         lblIp.setText("Detecting...");
-        lblBluetooth.setText("Checking...");
 
         new Thread(() -> {
             String ip = getBestLocalIp();
