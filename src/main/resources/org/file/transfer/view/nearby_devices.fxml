@@ -1,33 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
 
-<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
-      fx:controller="org.file.transfer.controller.NearbyDevicesController"
-      spacing="10" style="-fx-padding: 20;">
+<VBox spacing="20" style="-fx-padding: 40;" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.NearbyDevicesController">
 
-    <Label text="Nearby Devices" style="-fx-font-size: 24px; -fx-font-weight: bold;"/>
-    <Label text="Double-click to connect or select and click Connect" style="-fx-text-fill: gray;"/>
+    <Label prefHeight="31.0" prefWidth="233.0" styleClass="title-label" text="Nearby Devices" />
+    <Label styleClass="subtitle-label" text="Double-click to connect or select and click Connect" />
 
     <TableView fx:id="tablePeers" VBox.vgrow="ALWAYS">
         <columns>
-            <TableColumn fx:id="colName" text="Device Name" prefWidth="150"/>
-            <TableColumn fx:id="colIp" text="IP Address" prefWidth="120"/>
-            <TableColumn fx:id="colPort" text="Port" prefWidth="80"/>
-            <TableColumn fx:id="colMech" text="Mechanism" prefWidth="100"/>
-            <TableColumn fx:id="colStatus" text="Status" prefWidth="100"/>
+            <TableColumn fx:id="colName" prefWidth="150" text="Username" />
+            <TableColumn fx:id="colIp" prefWidth="120" text="IP Address" />
+            <TableColumn fx:id="colPort" prefWidth="80" text="Port" />
+            <TableColumn fx:id="colMech" prefWidth="124.0" text="Mechanism" />
+            <TableColumn fx:id="colStatus" prefWidth="76.0" text="Status" />
         </columns>
     </TableView>
 
-    <HBox spacing="10" alignment="CENTER_RIGHT">
-        <Button text="Refresh" onAction="#refreshPeers"/>
-        <Button fx:id="btnConnect" text="Connect" onAction="#connectToPeer" disable="true" 
-                style="-fx-background-color: #0078D7; -fx-text-fill: white; -fx-font-weight: bold;"/>
+    <HBox alignment="CENTER_RIGHT" spacing="15">
+        <Button onAction="#refreshPeers" styleClass="button-secondary" text="Refresh" />
+        <Button fx:id="btnConnect" disable="true" onAction="#connectToPeer" styleClass="button-primary" text="Connect" />
     </HBox>
 </VBox>

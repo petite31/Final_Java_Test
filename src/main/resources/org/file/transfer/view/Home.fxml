@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox spacing="30.0" style="-fx-background-color: #F4F7FE;" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.HomeController">
+<VBox spacing="30.0" style="-fx-background-color: #F4F4F4;" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.HomeController">
    <padding>
       <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
    </padding>
@@ -17,7 +17,7 @@
             <VBox prefHeight="200.0" prefWidth="300.0" styleClass="card">
                <children>
                   <Label styleClass="section-header" text="MY PASSKEY" />
-                  <Label fx:id="lblPasskey" style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #4318FF;" text="------" />
+                  <Label fx:id="lblPasskey" style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #005461;" text="------" />
                   <Label styleClass="info-label" text="Share this code to receive files" />
                   <Button mnemonicParsing="false" onAction="#generateNewPasskey" styleClass="button-secondary" text="Generate New">
                      <VBox.margin>
@@ -29,6 +29,12 @@
             <VBox prefHeight="200.0" prefWidth="300.0" styleClass="card">
                <children>
                   <Label styleClass="section-header" text="CONNECTION INFO" />
+                  <HBox spacing="10.0">
+                     <children>
+                        <Label styleClass="info-label" text="Username:" />
+                        <Label fx:id="lblUsername" styleClass="highlight-value" text="Loading..." />
+                     </children>
+                  </HBox>
                   <HBox spacing="10.0">
                      <children>
                         <Label styleClass="info-label" text="IP Address:" />

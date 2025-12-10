@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<javafx.scene.control.ScrollPane fitToHeight="true" fitToWidth="true" style="-fx-background-color: transparent;" stylesheets="@styles.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.LoginController">
+    <content>
+        <VBox alignment="CENTER" fillWidth="false" prefHeight="519.0" prefWidth="800.0" spacing="15.0">
+            <padding>
+                <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+            </padding>
+        
+            <!-- Card Container style could be applied here if VBox was wrapped -->
+            <VBox alignment="CENTER" prefHeight="439.0" prefWidth="350.0" spacing="15.0" style="-fx-background-color: white; -fx-padding: 30; -fx-background-radius: 40; -fx-min-width: 350;">
+                
+                <Label styleClass="header-label" text="Login" />
+        
+                <VBox alignment="CENTER_LEFT" maxWidth="Infinity" spacing="5.0">
+                     <Label style="-fx-font-size: 12px; -fx-text-fill: #666;" text="Username" />
+                     <TextField fx:id="usernameField" maxWidth="Infinity" promptText="Input your username" />
+                </VBox>
+        
+                <VBox alignment="CENTER_LEFT" maxWidth="Infinity" spacing="5.0">
+                     <Label style="-fx-font-size: 12px; -fx-text-fill: #666;" text="Password" />
+                     <PasswordField fx:id="passwordField" maxWidth="Infinity" promptText="Input your password" />
+                </VBox>
+        
+                <Button fx:id="loginButton" maxWidth="Infinity" mnemonicParsing="false" onAction="#handleLogin" text="Login" />
+        
+                <Hyperlink onAction="#switchToRegister" text="You're new in here? Create Account">
+                 <font>
+                    <Font name="System Bold" size="12.0" />
+                 </font></Hyperlink>
+        
+                <Label fx:id="statusLabel" textFill="RED" wrapText="true" />
+            </VBox>
+        </VBox>
+    </content>
+</javafx.scene.control.ScrollPane>

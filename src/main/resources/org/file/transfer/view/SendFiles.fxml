@@ -10,7 +10,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox spacing="30.0" style="-fx-background-color: #F4F7FE;" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.SendFilesController">
+<VBox spacing="30.0" style="-fx-background-color: #F4F4F4;" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.SendFilesController">
    <padding>
       <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
    </padding>
@@ -18,7 +18,7 @@
       <Label styleClass="title-label" text="Send Files" />
       <HBox spacing="30.0">
          <children>
-            <VBox fx:id="dropZone" alignment="CENTER" prefHeight="250.0" prefWidth="400.0" spacing="20.0" style="-fx-border-style: dashed; -fx-border-color: #A3AED0; -fx-border-width: 2; -fx-border-radius: 20; -fx-background-color: white; -fx-background-radius: 20;">
+            <VBox fx:id="dropZone" alignment="CENTER" prefHeight="250.0" prefWidth="400.0" spacing="20.0" style="-fx-border-style: dashed; -fx-border-color: #018790; -fx-border-width: 2; -fx-border-radius: 20; -fx-background-color: white; -fx-background-radius: 20;">
                <children>
                   <Label style="-fx-font-size: 48px;" text="☁" textFill="#4318ff" />
                   <Label styleClass="info-label" text="Drag &amp; Drop files here" />
@@ -32,8 +32,8 @@
                   <Label styleClass="section-header" text="RECIPIENT" />
                   <VBox spacing="5.0">
                      <children>
-                        <Label styleClass="info-label" text="IP Address" />
-                        <TextField fx:id="tfIp" promptText="e.g. 192.168.1.5" />
+                        <Label styleClass="info-label" text="Username / IP" />
+                        <TextField fx:id="tfIp" promptText="e.g. Username or 192.168.1.5" />
                      </children>
                   </VBox>
                   <VBox spacing="5.0">

@@ -15,10 +15,10 @@ public class MainApp extends Application {
         // Initialize Service
         TransferService.getInstance().initialize(new TransferManager());
 
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/file/transfer/view/MainLayout.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/file/transfer/view/Login.fxml"));
         Parent root = loader.load();
 
-        primaryStage.setTitle("FileTransfer P2P");
+        primaryStage.setTitle("File Transfer");
         primaryStage.setScene(new Scene(root));
         primaryStage.show();
 

@@ -10,16 +10,12 @@ public class TransportUDP implements Transport {
     private boolean isBound = false;
     private boolean isConnected = false;
 
-    // Last received info
     private String lastSenderIp;
     private int lastSenderPort;
 
-    // Buffer for receiving - matches typical UDP max or Jumbo frame
-    // We used 65507 previously.
     private static final int BUFFER_SIZE = 65507;
 
     public TransportUDP() throws SocketException {
-        // Default constructor, creates unbound socket (ephemeral port)
         this.socket = new DatagramSocket();
     }
 
@@ -33,10 +29,6 @@ public class TransportUDP implements Transport {
         this.connectedAddress = InetAddress.getByName(address);
         this.connectedPort = port;
         this.isConnected = true;
-        // logic: UDP doesn't really connect, but we store target
-        // socket.connect() restricts receiving, which might not be what we want if we
-        // want to hear from others.
-        // So we just store state.
     }
 
     @Override

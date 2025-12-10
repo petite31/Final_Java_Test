@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class FileReceiver {
     private final Transport transport;
     private final FileSender fileSender;
-    private final String myPasskey;
+    private String myPasskey;
     private final Set<String> authenticatedIps = Collections.synchronizedSet(new HashSet<>());
     private final BlockFileManager blockManager = BlockFileManager.getInstance();
 
@@ -47,6 +47,11 @@ public class FileReceiver {
             return udp.getSocket().getLocalPort();
         }
         return 0;
+    }
+
+    public void setPasskey(String passkey) {
+        this.myPasskey = passkey;
+        System.out.println("[Receiver] Passkey updated to: " + passkey);
     }
 
     public void close() {
@@ -186,6 +191,17 @@ public class FileReceiver {
 
                 if (fp.fileName().endsWith(".manifest")) {
                     processManifest(outputFile);
+                } else {
+                    // Log History for regular files
+                    // Try to get sender name or use IP
+                    // Since we don't have it easily here without changing many things, we use
+                    // "Unknown" or maybe we can pass senderIp to log
+                    String myName = org.file.transfer.service.UserSession.getInstance().getUsername();
+                    if (myName == null)
+                        myName = "Unknown";
+
+                    org.file.transfer.service.HistoryService.getInstance().logTransfer("Peer", myName, fp.fileName(),
+                            outputFile.length(), "Received");
                 }
             }
 

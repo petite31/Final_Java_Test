@@ -10,6 +10,7 @@ import org.file.transfer.transport.TransportManager;
 import java.io.*;
 import java.net.*;
 import java.util.BitSet;
+import java.util.List;
 import java.util.Stack;
 
 public class FileSender {
@@ -77,6 +78,21 @@ public class FileSender {
         }
     }
 
+    public void sendFiles(List<File> files, String targetIp, int targetPort, SendFilesController callback) {
+        for (File file : files) {
+            if (file.isDirectory()) {
+                sendFolder(file, targetIp, targetPort, callback);
+            } else {
+                sendFile(file, targetIp, targetPort, callback);
+            }
+            // Update history
+            org.file.transfer.service.TransferHistoryService.getInstance().markAsSent(targetIp, file);
+        }
+        if (callback != null) {
+            callback.onTransferComplete();
+        }
+    }
+
     private void sendFolder(File folder, String targetIp, int targetPort, SendFilesController callback) {
         try {
             FolderManifest manifest = new FolderManifest(folder.getName());
@@ -124,8 +140,8 @@ public class FileSender {
                 }
             }
 
-            if (callback != null)
-                callback.onTransferComplete();
+            // if (callback != null)
+            // callback.onTransferComplete(); // Removed to allow bulk complete
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -134,8 +150,8 @@ public class FileSender {
 
     public void sendFile(File file, String targetIp, int targetPort, SendFilesController callback) {
         sendFileInternal(file, targetIp, targetPort, callback, file.getName());
-        if (callback != null)
-            callback.onTransferComplete();
+        // if (callback != null)
+        // callback.onTransferComplete(); // Removed to allow bulk complete
     }
 
     private void sendFileInternal(File file, String targetIp, int targetPort, SendFilesController callback,

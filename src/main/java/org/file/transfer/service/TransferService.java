@@ -44,8 +44,9 @@ public class TransferService {
     }
 
     public void regeneratePasskey() {
-        // Logic to regenerate passkey would go here
-        // For now, we might need to restart the manager or add a method to it
+        if (transferManager != null) {
+            this.myPasskey = transferManager.regeneratePasskey();
+        }
     }
 
     public int getListeningPort() {

@@ -16,11 +16,19 @@ public class HomeController {
     private Label lblIp;
     @FXML
     private Label lblHostname;
+    @FXML
+    private Label lblUsername;
 
     @FXML
     public void initialize() {
         refreshIp();
         lblPasskey.setText(TransferService.getInstance().getMyPasskey());
+
+        String username = org.file.transfer.service.UserSession.getInstance().getUsername();
+        if (username == null || username.isEmpty()) {
+            username = System.getProperty("user.name", "Unknown");
+        }
+        lblUsername.setText(username);
     }
 
     @FXML

@@ -5,6 +5,7 @@ import org.file.transfer.service.TransferService;
 
 import java.io.File;
 import java.net.SocketException;
+import java.util.List;
 import java.util.Random;
 
 public class TransferManager {
@@ -43,6 +44,8 @@ public class TransferManager {
             boolean auth = fileSender.performHandshake(ip, 6969, passkey); // Default port 6969
             if (auth) {
                 fileSender.sendFileOrFolder(file, ip, 6969, callback);
+                if (callback != null)
+                    callback.onTransferComplete();
             } else {
                 // Handle auth failure
                 System.out.println("Auth failed");
@@ -50,8 +53,28 @@ public class TransferManager {
         }).start();
     }
 
+    public void authenticateAndSendFiles(List<File> files, String ip, String passkey, SendFilesController callback) {
+        new Thread(() -> {
+            boolean auth = fileSender.performHandshake(ip, 6969, passkey);
+            if (auth) {
+                fileSender.sendFiles(files, ip, 6969, callback);
+            } else {
+                System.out.println("Auth failed");
+            }
+        }).start();
+    }
+
     public String getMyPasskey() {
         return myPasskey;
+    }
+
+    public String regeneratePasskey() {
+        this.myPasskey = String.format("%06d", new Random().nextInt(1000000));
+        if (this.fileReceiver != null) {
+            this.fileReceiver.setPasskey(this.myPasskey);
+        }
+        System.out.println("[TransferManager] Regenerated passkey: " + this.myPasskey);
+        return this.myPasskey;
     }
 
     // Helper to get service instance if needed by children

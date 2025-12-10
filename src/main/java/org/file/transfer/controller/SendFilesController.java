@@ -10,6 +10,9 @@ import javafx.stage.FileChooser;
 import org.file.transfer.service.TransferService;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import org.file.transfer.service.TransferHistoryService;
 
 public class SendFilesController {
 
@@ -34,7 +37,7 @@ public class SendFilesController {
     @FXML
     private Label lblTime;
 
-    private File selectedFile;
+    private List<File> selectedFiles = new ArrayList<>();
 
     @FXML
     public void initialize() {
@@ -53,7 +56,7 @@ public class SendFilesController {
             Dragboard db = event.getDragboard();
             boolean success = false;
             if (db.hasFiles() && !db.getFiles().isEmpty()) {
-                selectedFile = db.getFiles().get(0);
+                selectedFiles = new ArrayList<>(db.getFiles());
                 updateFileSelection();
                 success = true;
             }
@@ -65,32 +68,22 @@ public class SendFilesController {
     @FXML
     private void chooseFile() {
         FileChooser fileChooser = new FileChooser();
-        selectedFile = fileChooser.showOpenDialog(null);
-        // Also support Directory chooser?
-        // Requirement said "Recursively scan...". User might want to send folder.
-        // But FileChooser only picks files. DirectoryChooser exists.
-        // I should probably add a logic to check? Or add a separate button?
-        // User requirements: "Send Full Folder... Recursively scan".
-        // Current UI only has "Choose File".
-        // I'll stick to FileChooser for now to match UI, but maybe upgrade later.
-        // Requirement says "Send Full Folder".
-        // I should probably switch to DirectoryChooser or checking if user drags a
-        // folder.
-        // DragZone supports folder?
-        // `db.getFiles()` returns `List<File>`. File can be directory.
-        // So DragAndDrop handles Folders automatically if logic supports it.
-        // `chooseFile` usually implies FileChooser.
-        // I won't change UI for "Choose Folder" button unless explicit req, keeping
-        // minimal changes.
-        // Drag/Drop is best for folders.
+        List<File> files = fileChooser.showOpenMultipleDialog(null);
 
-        if (selectedFile != null) {
+        if (files != null && !files.isEmpty()) {
+            selectedFiles = new ArrayList<>(files);
             updateFileSelection();
         }
     }
 
     private void updateFileSelection() {
-        lblSelectedFile.setText(selectedFile.getName());
+        if (selectedFiles.isEmpty()) {
+            lblSelectedFile.setText("No file selected");
+        } else if (selectedFiles.size() == 1) {
+            lblSelectedFile.setText(selectedFiles.get(0).getName());
+        } else {
+            lblSelectedFile.setText(selectedFiles.size() + " files selected");
+        }
         lblStatus.setText("Ready to send");
         progressBar.setProgress(0);
         lblSpeed.setText("0 MB/s");
@@ -99,21 +92,98 @@ public class SendFilesController {
 
     @FXML
     private void sendFile() {
-        if (selectedFile == null)
+        if (selectedFiles == null || selectedFiles.isEmpty())
             return;
 
-        String ip = tfIp.getText();
+        String inputTarget = tfIp.getText().trim();
         String passkey = tfPasskey.getText();
 
-        if (ip.isEmpty() || passkey.isEmpty()) {
+        if (inputTarget.isEmpty() || passkey.isEmpty()) {
             lblStatus.setText("Invalid Input");
             return;
         }
 
-        lblStatus.setText("Sending...");
+        String ip = inputTarget;
+        // Resolve Username to IP if input doesn't look like an IP address
+        if (!inputTarget.matches(".*\\d+\\..*") && !inputTarget.contains(":")) {
+            org.file.transfer.model.PeerInfo targetPeer = null;
+            try {
+                for (org.file.transfer.model.PeerInfo p : org.file.transfer.network.DiscoveryService.getInstance()
+                        .getActivePeers()) {
+                    if (p.getName().equalsIgnoreCase(inputTarget)) {
+                        targetPeer = p;
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                // Discovery service might not be ready
+            }
+
+            if (targetPeer != null) {
+                ip = targetPeer.getIp();
+                // Auto-fill passkey if empty and available? (Optional, staying safe with user
+                // input for now)
+            } else {
+                lblStatus.setText("User '" + inputTarget + "' not found.");
+                return;
+            }
+        }
+
+        // Check for duplicates
+        List<File> filesToSend = new ArrayList<>();
+        List<String> duplicates = new ArrayList<>();
+
+        for (File f : selectedFiles) {
+            if (TransferHistoryService.getInstance().isDuplicate(ip, f)) {
+                duplicates.add(f.getName());
+            } else {
+                filesToSend.add(f);
+            }
+        }
+
+        if (!duplicates.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Duplicate Warning");
+            alert.setHeaderText("Duplicate files detected");
+            alert.setContentText("The following files have already been sent to " + ip + ":\n"
+                    + String.join(", ", duplicates)
+                    + "\n\nDo you want to send them again?");
+
+            ButtonType btnYes = new ButtonType("Send All");
+            ButtonType btnNo = new ButtonType("Skip Duplicates");
+            ButtonType btnCancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+            alert.getButtonTypes().setAll(btnYes, btnNo, btnCancel);
+
+            var result = alert.showAndWait();
+            if (result.isPresent()) {
+                if (result.get() == btnYes) {
+                    filesToSend = new ArrayList<>(selectedFiles); // Send all
+                } else if (result.get() == btnNo) {
+                    // filesToSend already contains non-duplicates
+                    if (filesToSend.isEmpty()) {
+                        lblStatus.setText("Cancelled (All duplicates)");
+                        return;
+                    }
+                } else {
+                    lblStatus.setText("Cancelled");
+                    return;
+                }
+            } else {
+                return;
+            }
+        } else {
+            // No duplicates, send all selected
+            filesToSend = new ArrayList<>(selectedFiles);
+        }
+
+        lblStatus.setText("Sending " + filesToSend.size() + " files...");
+        final List<File> finalFiles = filesToSend; // IDK why java needs this sometimes but it's safe
+        final String finalIp = ip;
 
         new Thread(() -> {
-            TransferService.getInstance().getTransferManager().authenticateAndSend(selectedFile, ip, passkey, this);
+            TransferService.getInstance().getTransferManager().authenticateAndSendFiles(finalFiles, finalIp, passkey,
+                    this);
         }).start();
     }
 

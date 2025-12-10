@@ -17,16 +17,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 public class DiscoveryService {
-    private static final int DISCOVERY_PORT = 8888;
+    private static final int DISCOVERY_PORT = 8889;
     private static final String BROADCAST_Address = "255.255.255.255";
-    private static final int BROADCAST_INTERVAL = 2; // seconds
-    private static final int PEER_TIMEOUT = 5000; // 5 seconds
+    private static final int BROADCAST_INTERVAL = 2;
+    private static final int PEER_TIMEOUT = 5000;
 
     private DatagramSocket socket;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private boolean running = false;
-    private final String deviceName;
-    private final int fileTransferPort; // Port 6969 usually
+    private String deviceName;
+    private final int fileTransferPort;
 
     private BiConsumer<String, String> onPasskeyAccepted; // (ip, passkey) -> void
     private TriConsumer<String, String, Runnable> onConnectionRequested; // (senderIp, senderName, acceptCallback) ->
@@ -45,6 +45,19 @@ public class DiscoveryService {
     private DiscoveryService(int transferPort) {
         this.fileTransferPort = transferPort;
         this.deviceName = System.getProperty("user.name", "Unknown-User");
+
+        // Try to load from Session or XML
+        try {
+            if (org.file.transfer.service.UserSession.getInstance().isLoggedIn()) {
+                this.deviceName = org.file.transfer.service.UserSession.getInstance().getUsername();
+            } else {
+                String saved = org.file.transfer.util.AccountManager.loadUsername();
+                if (saved != null)
+                    this.deviceName = saved;
+            }
+        } catch (Exception e) {
+            // ignore
+        }
     }
 
     public static synchronized DiscoveryService getInstance(int transferPort) {
@@ -107,6 +120,11 @@ public class DiscoveryService {
     }
 
     private void broadcastPresence() {
+        // Refresh name from session if available
+        if (org.file.transfer.service.UserSession.getInstance().isLoggedIn()) {
+            this.deviceName = org.file.transfer.service.UserSession.getInstance().getUsername();
+        }
+
         // FORMAT:
         // DISCOVER_PEER_REQUEST|<deviceName>|<listeningPort>|<mechanism>|<passkey>
         // V3: Mechanism is always UDP.

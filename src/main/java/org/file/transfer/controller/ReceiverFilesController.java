@@ -1,172 +1,234 @@
 package org.file.transfer.controller;
 
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.TilePane;
-import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import org.file.transfer.model.TransferRecord;
+import org.file.transfer.service.HistoryService;
+import org.file.transfer.service.UserSession;
 import org.file.transfer.utils.SettingsManager;
 
 import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.stream.Collectors;
 
 public class ReceiverFilesController {
 
     @FXML
-    private ListView<String> listView;
+    private TableView<TransferRecord> allTable;
     @FXML
-    private ScrollPane scrollPane;
+    private TableColumn<TransferRecord, String> colType;
     @FXML
-    private TilePane tilePane;
+    private TableColumn<TransferRecord, String> colPeer;
     @FXML
-    private ToggleButton btnList;
+    private TableColumn<TransferRecord, String> colFile;
     @FXML
-    private ToggleButton btnGrid3;
+    private TableColumn<TransferRecord, String> colSize;
     @FXML
-    private ToggleButton btnGrid4;
+    private TableColumn<TransferRecord, String> colTime;
+    @FXML
+    private TableColumn<TransferRecord, String> colStatus;
+    @FXML
+    private TableColumn<TransferRecord, Void> colAction;
+
+    @FXML
+    private TableView<TransferRecord> sentTable;
+    @FXML
+    private TableColumn<TransferRecord, String> colSentPeer;
+    @FXML
+    private TableColumn<TransferRecord, String> colSentFile;
+    @FXML
+    private TableColumn<TransferRecord, String> colSentSize;
+    @FXML
+    private TableColumn<TransferRecord, String> colSentTime;
+    @FXML
+    private TableColumn<TransferRecord, String> colSentStatus;
+    @FXML
+    private TableColumn<TransferRecord, Void> colSentAction;
+
+    @FXML
+    private TableView<TransferRecord> receivedTable;
+    @FXML
+    private TableColumn<TransferRecord, String> colReceivedPeer;
+    @FXML
+    private TableColumn<TransferRecord, String> colReceivedFile;
+    @FXML
+    private TableColumn<TransferRecord, String> colReceivedSize;
+    @FXML
+    private TableColumn<TransferRecord, String> colReceivedTime;
+    @FXML
+    private TableColumn<TransferRecord, String> colReceivedStatus;
+    @FXML
+    private TableColumn<TransferRecord, Void> colReceivedAction;
+
+    private final ObservableList<TransferRecord> allData = FXCollections.observableArrayList();
+    private final ObservableList<TransferRecord> sentData = FXCollections.observableArrayList();
+    private final ObservableList<TransferRecord> receivedData = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
+        setupTable(allTable, colType, colPeer, colFile, colSize, colTime, colStatus, colAction, true);
+        setupTable(sentTable, null, colSentPeer, colSentFile, colSentSize, colSentTime, colSentStatus, colSentAction,
+                false);
+        setupTable(receivedTable, null, colReceivedPeer, colReceivedFile, colReceivedSize, colReceivedTime,
+                colReceivedStatus, colReceivedAction, false);
+
         refresh();
     }
 
-    @FXML
-    private void viewList() {
-        listView.setVisible(true);
-        scrollPane.setVisible(false);
-    }
+    private void setupTable(TableView<TransferRecord> table,
+            TableColumn<TransferRecord, String> typeCol,
+            TableColumn<TransferRecord, String> peerCol,
+            TableColumn<TransferRecord, String> fileCol,
+            TableColumn<TransferRecord, String> sizeCol,
+            TableColumn<TransferRecord, String> timeCol,
+            TableColumn<TransferRecord, String> statusCol,
+            TableColumn<TransferRecord, Void> actionCol,
+            boolean showType) {
 
-    @FXML
-    private void viewGrid3() {
-        listView.setVisible(false);
-        scrollPane.setVisible(true);
-        tilePane.setPrefColumns(3);
-        refresh();
-    }
+        String myName = UserSession.getInstance().getUsername();
+        if (myName == null)
+            myName = "Unknown";
+        final String currentUsername = myName;
 
-    @FXML
-    private void viewGrid4() {
-        listView.setVisible(false);
-        scrollPane.setVisible(true);
-        tilePane.setPrefColumns(4);
-        refresh();
-    }
+        if (showType && typeCol != null) {
+            typeCol.setCellValueFactory(cell -> {
+                boolean isSender = cell.getValue().getSender().equals(currentUsername);
+                return new SimpleStringProperty(isSender ? "Sent" : "Received");
+            });
+        }
 
-    @FXML
-    private void refresh() {
-        File dir = new File(SettingsManager.getInstance().getDownloadDirectory());
-        File[] files = dir.listFiles();
+        peerCol.setCellValueFactory(cell -> {
+            boolean isSender = cell.getValue().getSender().equals(currentUsername);
+            return new SimpleStringProperty(isSender ? cell.getValue().getReceiver() : cell.getValue().getSender());
+        });
 
-        if (files == null)
-            return;
-
-        // List View
-        listView.getItems().clear();
-        listView.setCellFactory(param -> new ListCell<String>() {
+        fileCol.setCellValueFactory(cell -> cell.getValue().fileNameProperty());
+        fileCol.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
+                    setText(null);
                     setGraphic(null);
+                    setStyle("");
                 } else {
+                    setText(item);
+                    // Check file existence in Download Directory
+                    // Note: This logic assumes received file is in download dir.
+                    // For sent file, we check existence too, although source might have moved.
+                    // The requirement stresses "file đang tồn tại trong thư mục đã chọn" (exists in
+                    // selected dir).
                     File f = new File(SettingsManager.getInstance().getDownloadDirectory(), item);
-                    setGraphic(createListRow(f));
+                    if (f.exists()) {
+                        setTextFill(Color.GREEN);
+                        setTooltip(new Tooltip("File exists locally"));
+                    } else {
+                        setTextFill(Color.RED);
+                        setTooltip(new Tooltip("File missing"));
+                    }
                 }
             }
         });
 
-        for (File f : files) {
-            if (f.isFile())
-                listView.getItems().add(f.getName());
-        }
+        sizeCol.setCellValueFactory(cell -> new SimpleStringProperty(formatSize(cell.getValue().getSize())));
 
-        // Grid View
-        tilePane.getChildren().clear();
-        for (File f : files) {
-            if (f.isFile())
-                tilePane.getChildren().add(createGridCard(f));
-        }
+        timeCol.setCellValueFactory(cell -> {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            return new SimpleStringProperty(sdf.format(cell.getValue().getTimestamp()));
+        });
+
+        statusCol.setCellValueFactory(cell -> cell.getValue().statusProperty());
+        // Color status logic if needed (e.g. Success vs Failed)
+
+        actionCol.setCellFactory(param -> new TableCell<>() {
+            private final Button btnDelete = new Button("Delete");
+
+            {
+                btnDelete.getStyleClass().add("button-icon");
+                btnDelete.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+                btnDelete.setOnAction(event -> {
+                    TransferRecord record = getTableView().getItems().get(getIndex());
+                    handleDelete(record);
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    setGraphic(btnDelete);
+                }
+            }
+        });
+
+        if (table == allTable)
+            table.setItems(allData);
+        else if (table == sentTable)
+            table.setItems(sentData);
+        else if (table == receivedTable)
+            table.setItems(receivedData);
     }
 
-    private HBox createListRow(File file) {
-        HBox row = new HBox(15);
-        row.setAlignment(Pos.CENTER_LEFT);
+    @FXML
+    private void refresh() {
+        String username = UserSession.getInstance().getUsername();
+        if (username == null)
+            return;
 
-        Label icon = new Label("📄");
-        icon.setStyle("-fx-font-size: 20px;");
+        // Run fetch on background thread
+        new Thread(() -> {
+            var history = HistoryService.getInstance().getHistory(username);
 
-        VBox info = new VBox(2);
-        Label name = new Label(file.getName());
-        name.setStyle("-fx-font-weight: bold;");
-        Label meta = new Label(formatSize(file.length()) + " • Method: P2P");
-        meta.setStyle("-fx-text-fill: #A3AED0; -fx-font-size: 11px;");
-        info.getChildren().addAll(name, meta);
-
-        HBox.setHgrow(info, javafx.scene.layout.Priority.ALWAYS);
-
-        Button btnView = new Button("View");
-        btnView.getStyleClass().add("button-action");
-        btnView.setOnAction(e -> previewFile(file));
-
-        Button btnOpen = new Button("Open");
-        btnOpen.getStyleClass().add("button-action");
-        btnOpen.setOnAction(e -> openFile(file));
-
-        row.getChildren().addAll(icon, info, btnView, btnOpen);
-        return row;
+            javafx.application.Platform.runLater(() -> {
+                allData.setAll(history);
+                sentData.setAll(history.stream()
+                        .filter(r -> r.getSender().equals(username))
+                        .collect(Collectors.toList()));
+                receivedData.setAll(history.stream()
+                        .filter(r -> r.getReceiver().equals(username))
+                        .collect(Collectors.toList()));
+            });
+        }).start();
     }
 
-    private VBox createGridCard(File file) {
-        VBox card = new VBox(10);
-        card.getStyleClass().add("card");
-        card.setAlignment(Pos.CENTER);
-        card.setPrefSize(150, 180);
-
-        Label icon = new Label("📄");
-        icon.setStyle("-fx-font-size: 40px;");
-
-        Label name = new Label(file.getName());
-        name.setWrapText(true);
-        name.setAlignment(Pos.CENTER);
-
-        HBox actions = new HBox(5);
-        actions.setAlignment(Pos.CENTER);
-        Button btnView = new Button("👁");
-        btnView.setOnAction(e -> previewFile(file));
-        Button btnOpen = new Button("📂");
-        btnOpen.setOnAction(e -> openFile(file));
-        actions.getChildren().addAll(btnView, btnOpen);
-
-        card.getChildren().addAll(icon, name, actions);
-        return card;
-    }
-
-    private void previewFile(File file) {
-        // Simple preview dialog
-        Dialog<Void> d = new Dialog<>();
-        d.setTitle("Preview " + file.getName());
-        d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        d.show();
-    }
-
-    private void openFile(File file) {
-        try {
-            java.awt.Desktop.getDesktop().open(file);
-        } catch (Exception e) {
-            e.printStackTrace();
+    private void handleDelete(TransferRecord record) {
+        String username = UserSession.getInstance().getUsername();
+        if (HistoryService.getInstance().deleteHistory(record.getId(), username)) {
+            refresh();
+        } else {
+            Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to delete history item.");
+            alert.show();
         }
     }
 
     @FXML
-    private void openFolder() {
-        try {
-            java.awt.Desktop.getDesktop().open(new File(SettingsManager.getInstance().getDownloadDirectory()));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+    private void handleDeleteAll() {
+        String username = UserSession.getInstance().getUsername();
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Delete all history?", ButtonType.YES, ButtonType.NO);
+        alert.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.YES) {
+                if (HistoryService.getInstance().deleteAllHistory(username)) {
+                    refresh();
+                } else {
+                    new Alert(Alert.AlertType.ERROR, "Failed to delete all history.").show();
+                }
+            }
+        });
     }
 
     private String formatSize(long bytes) {
-        return bytes / 1024 + " KB";
+        if (bytes < 1024)
+            return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(1024));
+        String pre = "KMGTPE".charAt(exp - 1) + "";
+        return String.format("%.1f %sB", bytes / Math.pow(1024, exp), pre);
     }
 }
