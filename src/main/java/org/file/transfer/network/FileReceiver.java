@@ -222,7 +222,11 @@ public class FileReceiver {
                 } else {
                     // Log History
                     String senderName = senderNames.getOrDefault(senderIp, "Unknown Peer");
-                    org.file.transfer.service.HistoryService.getInstance().logTransfer(senderName, "Me", fp.fileName(),
+                    String myName = org.file.transfer.service.UserSession.getInstance().getUsername();
+                    if (myName == null)
+                        myName = "Unknown";
+                    org.file.transfer.service.HistoryService.getInstance().logTransfer(senderName, myName,
+                            fp.fileName(),
                             outputFile.length(), "Received");
                 }
             }
