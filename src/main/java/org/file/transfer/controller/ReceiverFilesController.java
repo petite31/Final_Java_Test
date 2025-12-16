@@ -64,6 +64,8 @@ public class ReceiverFilesController {
     @FXML
     private TableColumn<TransferRecord, String> colReceivedStatus;
     @FXML
+    private TableColumn<TransferRecord, String> colReceivedPath;
+    @FXML
     private TableColumn<TransferRecord, Void> colReceivedAction;
 
     private final ObservableList<TransferRecord> allData = FXCollections.observableArrayList();
@@ -72,11 +74,12 @@ public class ReceiverFilesController {
 
     @FXML
     public void initialize() {
-        setupTable(allTable, colType, colPeer, colFile, colSize, colTime, colStatus, colAction, true);
-        setupTable(sentTable, null, colSentPeer, colSentFile, colSentSize, colSentTime, colSentStatus, colSentAction,
+        setupTable(allTable, colType, colPeer, colFile, colSize, colTime, colStatus, null, colAction, true);
+        setupTable(sentTable, null, colSentPeer, colSentFile, colSentSize, colSentTime, colSentStatus, null,
+                colSentAction,
                 false);
         setupTable(receivedTable, null, colReceivedPeer, colReceivedFile, colReceivedSize, colReceivedTime,
-                colReceivedStatus, colReceivedAction, false);
+                colReceivedStatus, colReceivedPath, colReceivedAction, false);
 
         refresh();
     }
@@ -88,6 +91,7 @@ public class ReceiverFilesController {
             TableColumn<TransferRecord, String> sizeCol,
             TableColumn<TransferRecord, String> timeCol,
             TableColumn<TransferRecord, String> statusCol,
+            TableColumn<TransferRecord, String> pathCol,
             TableColumn<TransferRecord, Void> actionCol,
             boolean showType) {
 
@@ -146,6 +150,10 @@ public class ReceiverFilesController {
         statusCol.setCellValueFactory(cell -> cell.getValue().statusProperty());
         // Color status logic if needed (e.g. Success vs Failed)
 
+        if (pathCol != null) {
+            pathCol.setCellValueFactory(cell -> cell.getValue().filePathProperty());
+        }
+
         actionCol.setCellFactory(param -> new TableCell<>() {
             private final Button btnOpen = new Button("Open");
             private final Button btnDelete = new Button("Delete");
@@ -178,7 +186,14 @@ public class ReceiverFilesController {
                     // Check if file exists to enable/disable Open
                     TransferRecord record = getTableView().getItems().get(getIndex());
                     if (record != null) {
-                        File f = new File(SettingsManager.getInstance().getDownloadDirectory(), record.getFileName());
+                        File f;
+                        // Use stored path if available, else fallback
+                        String storedPath = record.getFilePath();
+                        if (storedPath != null && !storedPath.isEmpty()) {
+                            f = new File(storedPath);
+                        } else {
+                            f = new File(SettingsManager.getInstance().getDownloadDirectory(), record.getFileName());
+                        }
                         btnOpen.setDisable(!f.exists());
                     }
                     setGraphic(pane);
@@ -218,7 +233,14 @@ public class ReceiverFilesController {
 
     private void handleOpen(TransferRecord record) {
         try {
-            File file = new File(SettingsManager.getInstance().getDownloadDirectory(), record.getFileName());
+            File file;
+            String storedPath = record.getFilePath();
+            if (storedPath != null && !storedPath.isEmpty()) {
+                file = new File(storedPath);
+            } else {
+                file = new File(SettingsManager.getInstance().getDownloadDirectory(), record.getFileName());
+            }
+
             if (file.exists()) {
                 java.awt.Desktop.getDesktop().open(file);
             } else {

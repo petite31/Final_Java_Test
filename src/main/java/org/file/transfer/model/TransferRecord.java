@@ -103,4 +103,8 @@ public class TransferRecord {
         if (this.filePath != null)
             this.filePath.set(path);
     }
+
+    public StringProperty filePathProperty() {
+        return filePath;
+    }
 }
