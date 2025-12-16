@@ -227,7 +227,7 @@ public class FileReceiver {
                         myName = "Unknown";
                     org.file.transfer.service.HistoryService.getInstance().logTransfer(senderName, myName,
                             fp.fileName(),
-                            outputFile.length(), "Received");
+                            outputFile.length(), "Received", outputFile.getAbsolutePath());
                 }
             }
 

@@ -34,7 +34,8 @@ public class HistoryService {
         return instance;
     }
 
-    public void logTransfer(String sender, String receiver, String fileName, long size, String status) {
+    public void logTransfer(String sender, String receiver, String fileName, long size, String status,
+            String filePath) {
         // Run in background thread to avoid blocking UI or Transfer
         new Thread(() -> {
             try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -46,6 +47,7 @@ public class HistoryService {
                 dos.writeUTF(fileName);
                 dos.writeLong(size);
                 dos.writeUTF(status);
+                dos.writeUTF(filePath != null ? filePath : "");
 
                 sendRequest(baos.toByteArray()); // We don't verify response for log, best effort
                 System.out.println("[HistoryService] Logged transfer: " + fileName);
@@ -81,8 +83,17 @@ public class HistoryService {
                             long size = dis.readLong();
                             String timestamp = dis.readUTF();
                             String status = dis.readUTF();
+                            String filePath = "";
+                            try {
+                                filePath = dis.readUTF();
+                            } catch (EOFException e) {
+                                // Ignore
+                            }
 
-                            history.add(new TransferRecord(id, sender, receiver, fileName, size, timestamp, status));
+                            TransferRecord rec = new TransferRecord(id, sender, receiver, fileName, size, timestamp,
+                                    status);
+                            rec.setFilePath(filePath);
+                            history.add(rec);
                         }
                     }
                 }

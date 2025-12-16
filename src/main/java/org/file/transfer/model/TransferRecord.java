@@ -28,6 +28,7 @@ public class TransferRecord {
             ts = new Timestamp(System.currentTimeMillis());
         }
         this.timestamp = new SimpleObjectProperty<>(ts);
+        this.filePath = new SimpleStringProperty("");
     }
 
     public int getId() {
@@ -88,5 +89,18 @@ public class TransferRecord {
 
     public StringProperty statusProperty() {
         return status;
+    }
+
+    private final StringProperty filePath;
+
+    public String getFilePath() {
+        if (filePath == null)
+            return "";
+        return filePath.get();
+    }
+
+    public void setFilePath(String path) {
+        if (this.filePath != null)
+            this.filePath.set(path);
     }
 }
