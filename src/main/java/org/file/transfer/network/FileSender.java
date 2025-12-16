@@ -163,7 +163,11 @@ public class FileSender {
                 totalPackets = 1;
 
             // 1. Send FILE_REQ
-            String req = "FILE_REQ:" + file.lastModified() + ":" + totalPackets + ":" + remoteFileName;
+            // V3: Include sender username
+            String myName = org.file.transfer.service.UserSession.getInstance().getUsername();
+            if (myName == null)
+                myName = "Unknown";
+            String req = "FILE_REQ:" + file.lastModified() + ":" + totalPackets + ":" + remoteFileName + ":" + myName;
 
             BitSet receivedBlocks = new BitSet(totalPackets);
             boolean handshakeDone = false;

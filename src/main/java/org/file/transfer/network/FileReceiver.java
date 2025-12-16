@@ -19,11 +19,13 @@ public class FileReceiver {
     private final Set<String> authenticatedIps = Collections.synchronizedSet(new HashSet<>());
     private final BlockFileManager blockManager = BlockFileManager.getInstance();
 
+    // Performance: Cache open file handles
+    private final Map<String, RandomAccessFile> openFileHandles = new ConcurrentHashMap<>();
+    // Metadata: Store sender names by IP
+    private final Map<String, String> senderNames = new ConcurrentHashMap<>();
+
     public FileReceiver(TransferManager manager, int requestedPort, String passkey) throws SocketException {
         this.myPasskey = passkey;
-        // Use TransportManager to create transport. For now fixed UDP for receiver
-        // listening.
-        // Bluetooth listener would need separate thread/transport.
         this.transport = TransportManager.getInstance().createTransport("UDP"); // Default to UDP
         try {
             this.transport.bind(requestedPort);
@@ -38,11 +40,6 @@ public class FileReceiver {
     }
 
     public int getPort() {
-        // Transport abstraction doesn't easily expose local port if bind() logic
-        // varies.
-        // But for UDP we might need it. Transport interface needs getLocalPort() if
-        // generic.
-        // Or we cast.
         if (transport instanceof org.file.transfer.transport.TransportUDP udp) {
             return udp.getSocket().getLocalPort();
         }
@@ -56,6 +53,14 @@ public class FileReceiver {
 
     public void close() {
         try {
+            // Close all open handles
+            for (RandomAccessFile raf : openFileHandles.values()) {
+                try {
+                    raf.close();
+                } catch (Exception ignored) {
+                }
+            }
+            openFileHandles.clear();
             transport.close();
         } catch (IOException e) {
             e.printStackTrace();
@@ -70,12 +75,10 @@ public class FileReceiver {
                     String senderIp = transport.getLastSenderAddress();
                     int senderPort = transport.getLastSenderPort();
 
-                    // Heuristic: Check if Command (String) or Data (Object)
-                    // Packets < 1024 bytes and starting with known prefixes are commands
                     boolean handled = false;
                     if (data.length < 1024) {
                         try {
-                            String msg = new String(data).trim(); // trim to remove nulls if any
+                            String msg = new String(data).trim();
                             if (handleCommand(msg, senderIp, senderPort)) {
                                 handled = true;
                             }
@@ -116,25 +119,29 @@ public class FileReceiver {
             return true;
         }
 
-        // RESUME REQUEST V2
-        // FORMAT: FILE_REQ:<chksum>:<totalPackets>:<fileName>
+        // RESUME REQUEST V3
+        // FORMAT: FILE_REQ:<timestamp>:<totalPackets>:<fileName>:<senderName>
         if (msg.startsWith("FILE_REQ:")) {
             if (!authenticatedIps.contains(senderIp) && !SettingsManager.getInstance().isAllowExternal()) {
                 // Ignore
                 return true;
             }
-            String[] parts = msg.split(":", 4);
-            if (parts.length >= 3) {
+            String[] parts = msg.split(":", 6); // Allow for extra parts if needed
+            if (parts.length >= 4) {
                 String fileName = parts[3];
                 int totalPackets = Integer.parseInt(parts[2]);
+
+                // V3: Extract sender name
+                if (parts.length >= 5) {
+                    String senderName = parts[4];
+                    senderNames.put(senderIp, senderName);
+                }
 
                 BitSet received = blockManager.getReceivedBlocks(fileName);
 
                 if (received.isEmpty()) {
                     transport.sendTo("FILE_ACK:START".getBytes(), senderIp, senderPort);
                 } else {
-                    // Send MISSING_BLOCKS (Compressed? Or just the BitSet object)
-                    // Implementation: Send BitSet object.
                     sendBitmap(received, senderIp, senderPort);
                 }
             }
@@ -155,7 +162,7 @@ public class FileReceiver {
             if (obj instanceof FilePacket fp) {
                 // Send Ack
                 fileSender.sendAck(fp.packetId(), senderIp, senderPort);
-                processFilePacket(fp);
+                processFilePacket(fp, senderIp);
             }
 
         } catch (Exception e) {
@@ -163,44 +170,59 @@ public class FileReceiver {
         }
     }
 
-    private void processFilePacket(FilePacket fp) {
+    private void processFilePacket(FilePacket fp, String senderIp) {
         try {
-            String downloadDir = SettingsManager.getInstance().getDownloadDirectory();
-            File dir = new File(downloadDir);
-            if (!dir.exists())
-                dir.mkdirs();
-
-            File outputFile = new File(dir, fp.fileName());
-
-            // Check block manager first
             BitSet received = blockManager.getReceivedBlocks(fp.fileName());
             if (received.get(fp.packetId()))
                 return; // Duplicate
 
-            try (RandomAccessFile raf = new RandomAccessFile(outputFile, "rw")) {
+            // Performance: Use cached handle
+            RandomAccessFile raf = openFileHandles.computeIfAbsent(fp.fileName(), k -> {
+                try {
+                    String downloadDir = SettingsManager.getInstance().getDownloadDirectory();
+                    File dir = new File(downloadDir);
+                    if (!dir.exists())
+                        dir.mkdirs();
+                    File outputFile = new File(dir, fp.fileName());
+                    return new RandomAccessFile(outputFile, "rw");
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            });
+
+            if (raf != null) {
                 long offset = (long) fp.packetId() * 60000;
-                raf.seek(offset);
-                raf.write(fp.data());
+                synchronized (raf) {
+                    raf.seek(offset);
+                    raf.write(fp.data());
+                }
             }
 
             blockManager.markBlockReceived(fp.fileName(), fp.packetId(), fp.totalPackets());
 
             if (blockManager.isComplete(fp.fileName(), fp.totalPackets())) {
                 System.out.println("[Receiver] File complete: " + fp.fileName());
+
+                // Cleanup handle
+                RandomAccessFile openRaf = openFileHandles.remove(fp.fileName());
+                if (openRaf != null) {
+                    try {
+                        openRaf.close();
+                    } catch (IOException ignored) {
+                    }
+                }
+
                 blockManager.cleanup(fp.fileName());
+
+                File outputFile = new File(SettingsManager.getInstance().getDownloadDirectory(), fp.fileName());
 
                 if (fp.fileName().endsWith(".manifest")) {
                     processManifest(outputFile);
                 } else {
-                    // Log History for regular files
-                    // Try to get sender name or use IP
-                    // Since we don't have it easily here without changing many things, we use
-                    // "Unknown" or maybe we can pass senderIp to log
-                    String myName = org.file.transfer.service.UserSession.getInstance().getUsername();
-                    if (myName == null)
-                        myName = "Unknown";
-
-                    org.file.transfer.service.HistoryService.getInstance().logTransfer("Peer", myName, fp.fileName(),
+                    // Log History
+                    String senderName = senderNames.getOrDefault(senderIp, "Unknown Peer");
+                    org.file.transfer.service.HistoryService.getInstance().logTransfer(senderName, "Me", fp.fileName(),
                             outputFile.length(), "Received");
                 }
             }
@@ -222,7 +244,6 @@ public class FileReceiver {
                 f.getParentFile().mkdirs();
             }
             System.out.println("[Receiver] Directory structure created for " + manifest.getRootFolderName());
-            // Note: Files inside come as separate packets
         } catch (Exception e) {
             e.printStackTrace();
         }
