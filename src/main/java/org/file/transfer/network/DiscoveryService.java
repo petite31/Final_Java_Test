@@ -281,6 +281,15 @@ public class DiscoveryService {
         sendPasskeyRequest(ip, passkey);
     }
 
+    public String getPeerName(String ip) {
+        for (PeerInfo p : activePeers) {
+            if (p.getIp().equals(ip)) {
+                return p.getName();
+            }
+        }
+        return ip; // Fallback to IP if name not found
+    }
+
     private void cleanupPeers() {
         long now = System.currentTimeMillis();
         Iterator<Map.Entry<String, PeerInfo>> it = peerMap.entrySet().iterator();

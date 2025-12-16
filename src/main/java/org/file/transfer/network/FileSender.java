@@ -86,7 +86,8 @@ public class FileSender {
                 sendFile(file, targetIp, targetPort, callback);
             }
             // Update history
-            org.file.transfer.service.TransferHistoryService.getInstance().markAsSent(targetIp, file);
+            String receiverName = DiscoveryService.getInstance().getPeerName(targetIp);
+            org.file.transfer.service.TransferHistoryService.getInstance().markAsSent(receiverName, file);
         }
         if (callback != null) {
             callback.onTransferComplete();
