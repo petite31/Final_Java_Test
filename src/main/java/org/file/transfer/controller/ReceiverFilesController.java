@@ -147,9 +147,20 @@ public class ReceiverFilesController {
         // Color status logic if needed (e.g. Success vs Failed)
 
         actionCol.setCellFactory(param -> new TableCell<>() {
+            private final Button btnOpen = new Button("Open");
             private final Button btnDelete = new Button("Delete");
+            private final HBox pane = new HBox(5, btnOpen, btnDelete);
 
             {
+                // Style Open Button
+                btnOpen.getStyleClass().add("button-icon");
+                btnOpen.setStyle("-fx-text-fill: #007a82; -fx-font-size: 12px; -fx-font-weight: bold;");
+                btnOpen.setOnAction(event -> {
+                    TransferRecord record = getTableView().getItems().get(getIndex());
+                    handleOpen(record);
+                });
+
+                // Style Delete Button
                 btnDelete.getStyleClass().add("button-icon");
                 btnDelete.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
                 btnDelete.setOnAction(event -> {
@@ -164,7 +175,13 @@ public class ReceiverFilesController {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    setGraphic(btnDelete);
+                    // Check if file exists to enable/disable Open
+                    TransferRecord record = getTableView().getItems().get(getIndex());
+                    if (record != null) {
+                        File f = new File(SettingsManager.getInstance().getDownloadDirectory(), record.getFileName());
+                        btnOpen.setDisable(!f.exists());
+                    }
+                    setGraphic(pane);
                 }
             }
         });
@@ -197,6 +214,19 @@ public class ReceiverFilesController {
                         .collect(Collectors.toList()));
             });
         }).start();
+    }
+
+    private void handleOpen(TransferRecord record) {
+        try {
+            File file = new File(SettingsManager.getInstance().getDownloadDirectory(), record.getFileName());
+            if (file.exists()) {
+                java.awt.Desktop.getDesktop().open(file);
+            } else {
+                new Alert(Alert.AlertType.ERROR, "File not found: " + file.getAbsolutePath()).show();
+            }
+        } catch (Exception e) {
+            new Alert(Alert.AlertType.ERROR, "Could not open file: " + e.getMessage()).show();
+        }
     }
 
     private void handleDelete(TransferRecord record) {

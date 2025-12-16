@@ -29,12 +29,18 @@ public class DiscoveryService {
     private final int fileTransferPort;
 
     private BiConsumer<String, String> onPasskeyAccepted; // (ip, passkey) -> void
-    private TriConsumer<String, String, Runnable> onConnectionRequested; // (senderIp, senderName, acceptCallback) ->
-                                                                         // void
+    private QuadConsumer<String, String, Runnable, Runnable> onConnectionRequested; // (senderIp, senderName,
+                                                                                    // acceptCallback, rejectCallback)
+                                                                                    // -> void
 
     @FunctionalInterface
     public interface TriConsumer<T, U, V> {
         void accept(T t, U u, V v);
+    }
+
+    @FunctionalInterface
+    public interface QuadConsumer<T, U, V, W> {
+        void accept(T t, U u, V v, W w);
     }
 
     private final ObservableList<PeerInfo> activePeers = FXCollections.observableArrayList();
@@ -81,7 +87,7 @@ public class DiscoveryService {
         this.onPasskeyAccepted = callback;
     }
 
-    public void setOnConnectionRequested(TriConsumer<String, String, Runnable> callback) {
+    public void setOnConnectionRequested(QuadConsumer<String, String, Runnable, Runnable> callback) {
         this.onConnectionRequested = callback;
     }
 
@@ -219,8 +225,16 @@ public class DiscoveryService {
                     sendUdp(reply, senderIp, senderDiscoveryPort);
                 };
 
+                Runnable rejectAction = () -> {
+                    System.out.println("[Discovery] User refused connection from " + requesterName);
+                    // CONNECTION_REFUSED|<deviceName>
+                    String reply = "CONNECTION_REFUSED|" + deviceName;
+                    sendUdp(reply, senderIp, senderDiscoveryPort);
+                };
+
                 // Trigger UI approval
-                Platform.runLater(() -> onConnectionRequested.accept(senderIp, requesterName, acceptAction));
+                Platform.runLater(
+                        () -> onConnectionRequested.accept(senderIp, requesterName, acceptAction, rejectAction));
             } else {
                 System.out.println("[Discovery] No connection request handler set, denying " + requesterName);
             }
@@ -234,6 +248,16 @@ public class DiscoveryService {
             if (onPasskeyAccepted != null) {
                 Platform.runLater(() -> onPasskeyAccepted.accept(senderIp, acceptedKey));
             }
+        } else if ("CONNECTION_REFUSED".equals(type) && parts.length >= 2) {
+            String refuser = parts[1];
+            Platform.runLater(() -> {
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                        javafx.scene.control.Alert.AlertType.INFORMATION);
+                alert.setTitle("Connection Refused");
+                alert.setHeaderText(null);
+                alert.setContentText(refuser + " refused this connection, please try again.");
+                alert.showAndWait();
+            });
         }
     }
 

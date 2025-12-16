@@ -33,21 +33,24 @@ public class MainLayoutController {
 
         // V3: Connection Approval Callback
         try {
-            DiscoveryService.getInstance().setOnConnectionRequested((senderIp, senderName, acceptAction) -> {
-                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                        javafx.scene.control.Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Connection Request");
-                alert.setHeaderText("Incoming Connection");
-                alert.setContentText(senderName + " (" + senderIp + ") wants to connect.\nAllow this connection?");
+            DiscoveryService.getInstance()
+                    .setOnConnectionRequested((senderIp, senderName, acceptAction, rejectAction) -> {
+                        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                                javafx.scene.control.Alert.AlertType.CONFIRMATION);
+                        alert.setTitle("Connection Request");
+                        alert.setHeaderText("Incoming Connection");
+                        alert.setContentText(
+                                senderName + " (" + senderIp + ") wants to connect.\nAllow this connection?");
 
-                alert.showAndWait().ifPresent(response -> {
-                    if (response == javafx.scene.control.ButtonType.OK) {
-                        acceptAction.run();
-                    } else {
-                        System.out.println("[UI] User denied connection from " + senderName);
-                    }
-                });
-            });
+                        alert.showAndWait().ifPresent(response -> {
+                            if (response == javafx.scene.control.ButtonType.OK) {
+                                acceptAction.run();
+                            } else {
+                                System.out.println("[UI] User denied connection from " + senderName);
+                                rejectAction.run();
+                            }
+                        });
+                    });
 
             // Auto-navigate on Passkey acceptance
             DiscoveryService.getInstance().setOnPasskeyAccepted((ip, passkey) -> {
