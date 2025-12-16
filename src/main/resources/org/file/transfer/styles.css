@@ -51,10 +51,6 @@
    Cards with Glassmorphism
    ============================================ */
 
-/* ============================================
-   Cards with Glassmorphism
-   ============================================ */
-
 .card {
     -fx-background-color: rgba(255, 255, 255, 0.9);
     -fx-background-radius: 40;
@@ -368,4 +364,48 @@
 .table-view .placeholder .label {
     -fx-text-fill: #4a6568;
     -fx-font-size: 14px;
+}
+
+/* ============================================
+   Tab Pane (Fixed)
+   ============================================ */
+
+.tab-pane {
+    -fx-tab-min-height: 40px;
+    -fx-tab-max-height: 40px;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-border-color: #e0f2f2;
+}
+
+.tab {
+    -fx-background-color: transparent;
+    -fx-border-width: 0 0 3 0;
+    -fx-border-color: transparent;
+    -fx-padding: 0 24;
+    -fx-cursor: hand;
+}
+
+.tab:hover {
+    -fx-background-color: rgba(0, 122, 130, 0.05);
+    -fx-background-radius: 5 5 0 0;
+}
+
+.tab:selected {
+    -fx-background-color: transparent;
+    -fx-border-color: #007a82;
+}
+
+.tab .tab-label {
+    -fx-text-fill: #4a6568;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+}
+
+.tab:selected .tab-label {
+    -fx-text-fill: #007a82;
+    -fx-fill: #007a82;
 }

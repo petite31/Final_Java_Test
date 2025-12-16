@@ -3,6 +3,7 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
@@ -21,7 +22,7 @@
             </Label>
             <Button fx:id="btnHome" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showHome" styleClass="nav-button" text="Home" />
             <Button fx:id="btnSend" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showSend" styleClass="nav-button" text="Send Files" />
-            <Button fx:id="btnReceive" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showReceive" styleClass="nav-button" text="Receiver Files" />
+            <Button fx:id="btnReceive" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showReceive" styleClass="nav-button" text="History transfer" />
             <Button fx:id="btnLanDiscovery" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showNearbyDevices" styleClass="nav-button" text="Nearby Devices" />
             <Button fx:id="btnSettings" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showSettings" styleClass="nav-button" text="Settings" />
          </children>
@@ -31,7 +32,7 @@
       </VBox>
    </left>
    <center>
-      <javafx.scene.control.ScrollPane fitToWidth="true" fitToHeight="true" style="-fx-background-color: transparent;" BorderPane.alignment="CENTER">
+      <javafx.scene.control.ScrollPane fitToHeight="true" fitToWidth="true" style="-fx-background-color: transparent;" BorderPane.alignment="CENTER">
          <content>
             <BorderPane fx:id="contentArea" style="-fx-background-color: #F4F4F4;" />
          </content>
