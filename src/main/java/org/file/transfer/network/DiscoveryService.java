@@ -239,7 +239,7 @@ public class DiscoveryService {
 
     private void sendResponse(String targetIp, int targetPort) {
         try {
-            String myIp = InetAddress.getLocalHost().getHostAddress();
+            String myIp = IP_Port_Managment.getBestLocalIp();
             String passkey = org.file.transfer.service.TransferService.getInstance().getMyPasskey();
             if (passkey == null)
                 passkey = "DEFAULT";

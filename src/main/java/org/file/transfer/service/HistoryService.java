@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class HistoryService {
-    private static final String SERVER_HOST = "localhost";
+    private static final String SERVER_HOST = "192.168.16.74";
     private static final int SERVER_PORT = 8888;
     private static final int BUFFER_SIZE = 8192; // Larger buffer for history list
     private static final int TIMEOUT_MS = 5000;
