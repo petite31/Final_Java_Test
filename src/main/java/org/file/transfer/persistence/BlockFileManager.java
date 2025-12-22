@@ -111,6 +111,10 @@ public class BlockFileManager {
     private void saveToDisk(String fileName, TransferState state) {
         Object lock = fileLocks.computeIfAbsent(fileName, k -> new Object());
         synchronized (lock) {
+            // Fix Race Condition: Check if file is finished/cleaned up BEFORE writing
+            if (finishedFiles.contains(fileName)) {
+                return;
+            }
             try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(getTransferFile(fileName)))) {
                 synchronized (state) {
                     oos.writeObject(state);
