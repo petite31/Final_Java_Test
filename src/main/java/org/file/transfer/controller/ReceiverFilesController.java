@@ -220,8 +220,63 @@ public class ReceiverFilesController {
                             .filter(r -> r.getReceiver().equals(username))
                             .collect(Collectors.toList()));
                 }
+                loadInterruptedFiles(username);
             });
         }).start();
+    }
+
+    private void loadInterruptedFiles(String myUsername) {
+        org.file.transfer.persistence.BlockFileManager manager = org.file.transfer.persistence.BlockFileManager
+                .getInstance();
+        java.util.Set<String> activeFiles = manager.getActiveFiles();
+
+        for (String fileName : activeFiles) {
+            // Check if file is already in history (completed)
+            boolean exists = receivedData.stream()
+                    .anyMatch(r -> r.getFileName().equals(fileName) && r.getStatus().equals("Received"));
+            if (exists)
+                continue;
+
+            org.file.transfer.persistence.BlockFileManager.TransferState state = manager.getState(fileName);
+            long estimatedSize = (long) state.totalBlocks * 60000;
+
+            // Calculate progress or show as Interrupted
+            String status = "Interrupted";
+            if (System.currentTimeMillis() - state.lastModified < 10000) {
+                status = "Receiving...";
+            }
+
+            TransferRecord rec = new TransferRecord(
+                    -1, // Temp ID
+                    "Unknown", // Sender unknown after restart
+                    myUsername,
+                    fileName,
+                    estimatedSize,
+                    new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(state.lastModified)),
+                    status);
+
+            // Check if it is a manifest (Folder)
+            if (fileName.endsWith(".manifest")) {
+                rec = new TransferRecord(
+                        -1,
+                        "Unknown",
+                        myUsername,
+                        fileName + " (Folder Manifest)",
+                        estimatedSize,
+                        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(state.lastModified)),
+                        status);
+            }
+
+            // Bind delete action to cleanup
+            // We can't easily hook into the 'Delete' button of the TableView cell factory
+            // here without changing the logic,
+            // but the existing 'Delete' calls deleteHistory.
+            // For these temp records, we might need special handling.
+            // For now, just displaying them is the goal.
+
+            receivedData.add(0, rec); // Add to top
+            allData.add(0, rec);
+        }
     }
 
     private void loadLocalFiles() {
