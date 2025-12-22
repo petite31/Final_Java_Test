@@ -68,9 +68,28 @@ public class BlockFileManager {
     public void cleanup(String fileName) {
         activeTransfers.remove(fileName);
         finishedFiles.add(fileName);
-        try {
-            getTransferFile(fileName).delete();
-        } catch (Exception ignored) {
+
+        // Retry deletion logic for Windows file locking issues
+        File f = getTransferFile(fileName);
+        int retries = 0;
+        while (f.exists() && retries < 20) { // Try for ~2 seconds
+            if (f.delete()) {
+                System.out.println("[BlockFileManager] Deleted transfer file: " + f.getAbsolutePath());
+                return;
+            }
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            retries++;
+            System.gc(); // Hint to GC to release any lingering file handles
+        }
+
+        if (f.exists()) {
+            System.err.println("[BlockFileManager] FAILED to delete transfer file: " + f.getAbsolutePath());
+            // Last resort: delete on exit
+            f.deleteOnExit();
         }
     }
 
