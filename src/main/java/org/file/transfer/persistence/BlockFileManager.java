@@ -23,6 +23,7 @@ public class BlockFileManager {
 
     private final Map<String, TransferState> activeTransfers = new ConcurrentHashMap<>();
     private final Map<String, Object> fileLocks = new ConcurrentHashMap<>();
+    private final Set<String> finishedFiles = ConcurrentHashMap.newKeySet();
 
     private BlockFileManager() {
     }
@@ -66,7 +67,20 @@ public class BlockFileManager {
 
     public void cleanup(String fileName) {
         activeTransfers.remove(fileName);
-        getTransferFile(fileName).delete();
+        finishedFiles.add(fileName);
+        try {
+            getTransferFile(fileName).delete();
+        } catch (Exception ignored) {
+        }
+    }
+
+    public boolean isFinished(String fileName) {
+        return finishedFiles.contains(fileName);
+    }
+
+    public void reset(String fileName) {
+        finishedFiles.remove(fileName);
+        activeTransfers.remove(fileName);
     }
 
     private File getTransferFile(String fileName) {

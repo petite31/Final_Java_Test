@@ -132,7 +132,10 @@ public class FileReceiver {
                     senderNames.put(senderIp, senderName);
                 }
 
-                // [LOGIC RESUME] Kiểm tra file này đã nhận được phần nào chưa?
+                // [LOGIC RESUME] Reset trạng thái cũ nếu có để sẵn sàng nhận mới
+                blockManager.reset(fileName);
+
+                // Kiểm tra file này đã nhận được phần nào chưa?
                 BitSet received = blockManager.getReceivedBlocks(fileName);
 
                 if (received.isEmpty()) {
@@ -158,6 +161,14 @@ public class FileReceiver {
             Object obj = ois.readObject();
 
             if (obj instanceof FilePacket fp) {
+                // Ignore zombie packets for finished files
+                if (blockManager.isFinished(fp.fileName())) {
+                    // Still ACK to stop sender from retrying
+                    String ack = "ACK_" + fp.packetId();
+                    transport.sendTo(ack.getBytes(), senderIp, senderPort);
+                    return;
+                }
+
                 // [RELIABLE UDP] Gửi xác nhận (ACK) ngay khi nhận được gói tin
                 String ack = "ACK_" + fp.packetId();
                 transport.sendTo(ack.getBytes(), senderIp, senderPort);
@@ -170,6 +181,10 @@ public class FileReceiver {
 
     private void processFilePacket(FilePacket fp, String senderIp) {
         try {
+            // Double check finished status
+            if (blockManager.isFinished(fp.fileName()))
+                return;
+
             // Kiểm tra trùng lặp: Gói này đã ghi rồi thì thôi
             BitSet received = blockManager.getReceivedBlocks(fp.fileName());
             if (received.get(fp.packetId()))
