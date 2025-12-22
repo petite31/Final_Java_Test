@@ -49,5 +49,5 @@ public interface Transport {
 
     boolean isBound();
 
-    String getName(); // "UDP", "Bluetooth", etc.
+    String getName();
 }

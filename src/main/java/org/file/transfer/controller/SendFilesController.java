@@ -104,7 +104,6 @@ public class SendFilesController {
         }
 
         String ip = inputTarget;
-        // Resolve Username to IP if input doesn't look like an IP address
         if (!inputTarget.matches(".*\\d+\\..*") && !inputTarget.contains(":")) {
             org.file.transfer.model.PeerInfo targetPeer = null;
             try {
@@ -116,20 +115,16 @@ public class SendFilesController {
                     }
                 }
             } catch (Exception e) {
-                // Discovery service might not be ready
             }
 
             if (targetPeer != null) {
                 ip = targetPeer.getIp();
-                // Auto-fill passkey if empty and available? (Optional, staying safe with user
-                // input for now)
             } else {
                 lblStatus.setText("User '" + inputTarget + "' not found.");
                 return;
             }
         }
 
-        // Check for duplicates
         List<File> filesToSend = new ArrayList<>();
         List<String> duplicates = new ArrayList<>();
 
@@ -158,9 +153,8 @@ public class SendFilesController {
             var result = alert.showAndWait();
             if (result.isPresent()) {
                 if (result.get() == btnYes) {
-                    filesToSend = new ArrayList<>(selectedFiles); // Send all
+                    filesToSend = new ArrayList<>(selectedFiles);
                 } else if (result.get() == btnNo) {
-                    // filesToSend already contains non-duplicates
                     if (filesToSend.isEmpty()) {
                         lblStatus.setText("Cancelled (All duplicates)");
                         return;
@@ -173,12 +167,11 @@ public class SendFilesController {
                 return;
             }
         } else {
-            // No duplicates, send all selected
             filesToSend = new ArrayList<>(selectedFiles);
         }
 
         lblStatus.setText("Sending " + filesToSend.size() + " files...");
-        final List<File> finalFiles = filesToSend; // IDK why java needs this sometimes but it's safe
+        final List<File> finalFiles = filesToSend;
         final String finalIp = ip;
 
         new Thread(() -> {

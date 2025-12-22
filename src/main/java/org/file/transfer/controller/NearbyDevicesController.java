@@ -41,12 +41,10 @@ public class NearbyDevicesController {
 
         tablePeers.setItems(discoveryService.getActivePeers());
 
-        // Update button state
         tablePeers.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             btnConnect.setDisable(newVal == null);
         });
 
-        // Double click to connect
         tablePeers.setRowFactory(tv -> {
             TableRow<PeerInfo> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
@@ -60,24 +58,15 @@ public class NearbyDevicesController {
 
     @FXML
     private void refreshPeers() {
-        // Service runs in background, maybe trigger immediate broadcast if API allowed
     }
 
     @FXML
     private void connectToPeer() {
         PeerInfo selected = tablePeers.getSelectionModel().getSelectedItem();
         if (selected != null) {
-            // Always UDP
 
-            // Send Connection Request
-            // DiscoveryService sends: PASSKEY_REQUEST|<me>|<passkey>|<port>
-            // We now send a default passkey as the verification is removed.
-            // The receiver will just see a request and can Accept/Decline.
-
-            // Send Connection Request
             discoveryService.sendConnectionRequest(selected.getIp());
 
-            // Update UI to indicate waiting
             btnConnect.setDisable(true);
             btnConnect.setText("Waiting...");
         }

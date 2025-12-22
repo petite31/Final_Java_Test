@@ -21,46 +21,20 @@ public class FileSender {
 
     public FileSender(TransferManager manager) throws SocketException {
         this.manager = manager;
-        // Ideally sender uses the same transport manager.
-        // If we want to connect to a specific transport mechanism, we should ask
-        // TransportManager.
-        // For UDP default:
         this.transport = TransportManager.getInstance().createTransport("UDP");
     }
 
     public boolean performHandshake(String ip, int port, String passkey) {
         try {
-            // Using Transport for handshake
-            // Auth is simple string exchange
             String authMsg = "AUTH_REQUEST:" + passkey;
             transport.sendTo(authMsg.getBytes(), ip, port);
-
-            // Wait for response?
-            // Transport.receive() is blocking.
-            // We need a timeout logic. Transport interface doesn't strictly imply timeouts
-            // on receive().
-            // But UDP transport implementation uses DatagramSocket which can have timeouts.
-            // If we cast to UDP, we can set it.
-            // Better to wrap in thread or Future?
-            // For now, let's assume Transport operations are blocking and we rely on socket
-            // timeout if underlying supports it.
-            // Or we check `receive()` loop in separate thread?
-            // Handshake is synchronous here.
-
-            // NOTE: TransportUDP as implemented in step 148 receives indiscriminately.
-            // If we use the SAME transport instance for shared listening, we might steal
-            // packets?
-            // FileSender usually creates its own socket (ephemeral).
-            // FileReceiver has its own bound socket.
-            // So it's fine.
 
             if (transport instanceof org.file.transfer.transport.TransportUDP udp) {
                 udp.getSocket().setSoTimeout(3000);
             }
 
-            byte[] response = transport.receive(); // Blocks
+            byte[] response = transport.receive();
             String reply = new String(response).trim();
-            // Check sender ip? transport.getLastSenderAddress()
 
             return reply.equals("AUTH_RESPONSE:OK");
 
@@ -85,7 +59,6 @@ public class FileSender {
             } else {
                 sendFile(file, targetIp, targetPort, callback);
             }
-            // Update history
             String receiverName = DiscoveryService.getInstance().getPeerName(targetIp);
             org.file.transfer.service.TransferHistoryService.getInstance().markAsSent(receiverName, file);
         }
@@ -141,9 +114,6 @@ public class FileSender {
                 }
             }
 
-            // if (callback != null)
-            // callback.onTransferComplete(); // Removed to allow bulk complete
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -151,8 +121,6 @@ public class FileSender {
 
     public void sendFile(File file, String targetIp, int targetPort, SendFilesController callback) {
         sendFileInternal(file, targetIp, targetPort, callback, file.getName());
-        // if (callback != null)
-        // callback.onTransferComplete(); // Removed to allow bulk complete
     }
 
     private void sendFileInternal(File file, String targetIp, int targetPort, SendFilesController callback,
@@ -163,8 +131,6 @@ public class FileSender {
             if (totalPackets == 0)
                 totalPackets = 1;
 
-            // 1. Send FILE_REQ
-            // V3: Include sender username
             String myName = org.file.transfer.service.UserSession.getInstance().getUsername();
             if (myName == null)
                 myName = "Unknown";
@@ -176,7 +142,6 @@ public class FileSender {
             for (int i = 0; i < 5; i++) {
                 transport.sendTo(req.getBytes(), targetIp, targetPort);
                 try {
-                    // Wait for response
                     if (transport instanceof org.file.transfer.transport.TransportUDP udp) {
                         udp.getSocket().setSoTimeout(2000);
                     }
@@ -226,6 +191,7 @@ public class FileSender {
 
                     byte[] data = (bytesRead == PACKET_SIZE) ? buffer : java.util.Arrays.copyOf(buffer, bytesRead);
 
+                    // tao doi tuong FilePacket
                     FilePacket packet = new FilePacket(
                             packetId,
                             data,
@@ -274,15 +240,6 @@ public class FileSender {
             } catch (SocketTimeoutException e) {
                 retry++;
             }
-        }
-    }
-
-    public void sendAck(int packetId, String ip, int port) {
-        try {
-            String ackMsg = "ACK_" + packetId;
-            transport.sendTo(ackMsg.getBytes(), ip, port);
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 

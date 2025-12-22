@@ -40,9 +40,7 @@ public class LoginController {
 
         StringBuilder message = new StringBuilder();
         if (authService.login(username, password, message)) {
-            // Update Session
             UserSession.getInstance().login(username, "USER");
-            // Save to XML
             AccountManager.saveUsername(username);
 
             statusLabel.setStyle("-fx-text-fill: green;");

@@ -36,14 +36,12 @@ public class FileReceiveStatusController {
         Platform.runLater(() -> {
             java.util.Set<String> activeFiles = BlockFileManager.getInstance().getActiveFiles();
 
-            // Add new
             for (String f : activeFiles) {
                 if (!listTransfers.getItems().contains(f)) {
                     listTransfers.getItems().add(f);
                 }
             }
 
-            // Force redraw of cells
             listTransfers.refresh();
 
             lblOverallStatus.setText("Active Transfers: " + activeFiles.size());

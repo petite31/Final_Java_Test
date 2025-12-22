@@ -12,11 +12,6 @@ public class TransferService {
     private int listeningPort;
 
     private TransferService() {
-        // Initialize with a dummy controller or refactor TransferManager to not need
-        // one immediately
-        // For now, we'll keep TransferManager but decouple it slightly or wrap it.
-        // Ideally, TransferManager should be the Service itself, but we'll wrap it for
-        // the new architecture.
     }
 
     public static TransferService getInstance() {
@@ -27,8 +22,6 @@ public class TransferService {
         this.transferManager = manager;
         this.myPasskey = manager.getMyPasskey();
         try {
-            // We might need to re-initialize receiver if port changes, but for now assume
-            // static start
             this.listeningPort = manager.startListening();
         } catch (Exception e) {
             e.printStackTrace();

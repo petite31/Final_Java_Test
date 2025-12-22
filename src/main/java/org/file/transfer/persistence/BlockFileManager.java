@@ -9,7 +9,6 @@ import java.util.Map;
 public class BlockFileManager {
     private static BlockFileManager instance;
 
-    // We need to store more than just BitSet. We need Total Blocks.
     public static class TransferState implements Serializable {
         public BitSet receivedBlocks;
         public int totalBlocks;
@@ -42,7 +41,6 @@ public class BlockFileManager {
         return activeTransfers.computeIfAbsent(fileName, this::loadFromDisk);
     }
 
-    // Legacy support for Receiver
     public BitSet getReceivedBlocks(String fileName) {
         return getState(fileName).receivedBlocks;
     }
@@ -50,7 +48,7 @@ public class BlockFileManager {
     public void markBlockReceived(String fileName, int packetId, int totalPackets) {
         TransferState state = getState(fileName);
         if (state.totalBlocks == 0)
-            state.totalBlocks = totalPackets; // fix if loaded empty
+            state.totalBlocks = totalPackets;
 
         synchronized (state) {
             state.receivedBlocks.set(packetId);
@@ -79,7 +77,6 @@ public class BlockFileManager {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(meta))) {
             Object obj = ois.readObject();
             if (obj instanceof BitSet) {
-                // Migrate legacy
                 TransferState s = new TransferState(0);
                 s.receivedBlocks = (BitSet) obj;
                 return s;

@@ -7,7 +7,6 @@ public class TransportManager {
     private Transport currentTransport;
 
     private TransportManager() {
-        // Hardcoded to UDP
         try {
             this.currentTransport = new TransportUDP();
         } catch (SocketException e) {
@@ -26,10 +25,7 @@ public class TransportManager {
         return currentTransport;
     }
 
-    // Bluetooth/UDP toggles removed. Explicitly UDP.
-    
     public Transport createTransport(String type) throws SocketException {
-        // Ignore type, return UDP
-        return new TransportUDP(); 
+        return new TransportUDP();
     }
 }

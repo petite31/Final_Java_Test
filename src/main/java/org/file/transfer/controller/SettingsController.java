@@ -45,6 +45,5 @@ public class SettingsController {
 
     @FXML
     private void testNetwork() {
-        // Implement ping test logic here
     }
 }

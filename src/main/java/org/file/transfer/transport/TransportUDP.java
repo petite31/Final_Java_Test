@@ -66,7 +66,6 @@ public class TransportUDP implements Transport {
         this.lastSenderIp = packet.getAddress().getHostAddress();
         this.lastSenderPort = packet.getPort();
 
-        // Return actual data size
         byte[] data = new byte[packet.getLength()];
         System.arraycopy(packet.getData(), 0, data, 0, packet.getLength());
         return data;
@@ -106,7 +105,6 @@ public class TransportUDP implements Transport {
         return "UDP";
     }
 
-    // Helper to get raw socket if needed (legacy support)
     public DatagramSocket getSocket() {
         return socket;
     }

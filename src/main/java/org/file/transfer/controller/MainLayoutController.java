@@ -25,13 +25,10 @@ public class MainLayoutController {
     public void initialize() {
         instance = this;
 
-        // Initialize DiscoveryService early
-        // Typically port 6969 for file transfer
         DiscoveryService.getInstance(6969).start();
 
         showHome();
 
-        // V3: Connection Approval Callback
         try {
             DiscoveryService.getInstance()
                     .setOnConnectionRequested((senderIp, senderName, acceptAction, rejectAction) -> {
@@ -52,12 +49,10 @@ public class MainLayoutController {
                         });
                     });
 
-            // Auto-navigate on Passkey acceptance
             DiscoveryService.getInstance().setOnPasskeyAccepted((ip, passkey) -> {
                 showSendWithPeer(ip, passkey);
             });
         } catch (IllegalStateException e) {
-            // Service not started yet, ignore
         }
     }
 

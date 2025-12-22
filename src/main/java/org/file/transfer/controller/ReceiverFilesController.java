@@ -123,11 +123,6 @@ public class ReceiverFilesController {
                     setStyle("");
                 } else {
                     setText(item);
-                    // Check file existence in Download Directory
-                    // Note: This logic assumes received file is in download dir.
-                    // For sent file, we check existence too, although source might have moved.
-                    // The requirement stresses "file đang tồn tại trong thư mục đã chọn" (exists in
-                    // selected dir).
                     File f = new File(SettingsManager.getInstance().getDownloadDirectory(), item);
                     if (f.exists()) {
                         setTextFill(Color.GREEN);
@@ -148,7 +143,6 @@ public class ReceiverFilesController {
         });
 
         statusCol.setCellValueFactory(cell -> cell.getValue().statusProperty());
-        // Color status logic if needed (e.g. Success vs Failed)
 
         if (pathCol != null) {
             pathCol.setCellValueFactory(cell -> cell.getValue().filePathProperty());
@@ -160,7 +154,6 @@ public class ReceiverFilesController {
             private final HBox pane = new HBox(5, btnOpen, btnDelete);
 
             {
-                // Style Open Button
                 btnOpen.getStyleClass().add("button-icon");
                 btnOpen.setStyle("-fx-text-fill: #007a82; -fx-font-size: 12px; -fx-font-weight: bold;");
                 btnOpen.setOnAction(event -> {
@@ -168,7 +161,6 @@ public class ReceiverFilesController {
                     handleOpen(record);
                 });
 
-                // Style Delete Button
                 btnDelete.getStyleClass().add("button-icon");
                 btnDelete.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
                 btnDelete.setOnAction(event -> {
@@ -183,11 +175,9 @@ public class ReceiverFilesController {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    // Check if file exists to enable/disable Open
                     TransferRecord record = getTableView().getItems().get(getIndex());
                     if (record != null) {
                         File f;
-                        // Use stored path if available, else fallback
                         String storedPath = record.getFilePath();
                         if (storedPath != null && !storedPath.isEmpty()) {
                             f = new File(storedPath);
@@ -215,20 +205,53 @@ public class ReceiverFilesController {
         if (username == null)
             return;
 
-        // Run fetch on background thread
         new Thread(() -> {
             var history = HistoryService.getInstance().getHistory(username);
 
             javafx.application.Platform.runLater(() -> {
-                allData.setAll(history);
-                sentData.setAll(history.stream()
-                        .filter(r -> r.getSender().equals(username))
-                        .collect(Collectors.toList()));
-                receivedData.setAll(history.stream()
-                        .filter(r -> r.getReceiver().equals(username))
-                        .collect(Collectors.toList()));
+                if (history == null) {
+                    loadLocalFiles();
+                } else {
+                    allData.setAll(history);
+                    sentData.setAll(history.stream()
+                            .filter(r -> r.getSender().equals(username))
+                            .collect(Collectors.toList()));
+                    receivedData.setAll(history.stream()
+                            .filter(r -> r.getReceiver().equals(username))
+                            .collect(Collectors.toList()));
+                }
             });
         }).start();
+    }
+
+    private void loadLocalFiles() {
+        File dir = new File(SettingsManager.getInstance().getDownloadDirectory());
+        if (dir.exists() && dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            ObservableList<TransferRecord> localRecords = FXCollections.observableArrayList();
+            if (files != null) {
+                int idCounter = -1;
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                for (File f : files) {
+                    if (f.isFile()) {
+                        String timeStr = sdf.format(new java.util.Date(f.lastModified()));
+                        TransferRecord rec = new TransferRecord(
+                                idCounter--,
+                                "Local",
+                                "Me",
+                                f.getName(),
+                                f.length(),
+                                timeStr,
+                                "COMPLETED");
+                        rec.setFilePath(f.getAbsolutePath());
+                        localRecords.add(rec);
+                    }
+                }
+            }
+            allData.setAll(localRecords);
+            receivedData.setAll(localRecords);
+            sentData.clear();
+        }
     }
 
     private void handleOpen(TransferRecord record) {

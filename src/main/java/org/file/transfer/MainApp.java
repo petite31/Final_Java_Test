@@ -12,7 +12,6 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        // Initialize Service
         TransferService.getInstance().initialize(new TransferManager());
 
         FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/file/transfer/view/Login.fxml"));

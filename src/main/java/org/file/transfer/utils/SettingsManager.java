@@ -23,7 +23,6 @@ public class SettingsManager {
                 + "FileTransfer";
         String dir = prefs.get(KEY_DOWNLOAD_DIR, defaultDir);
 
-        // Ensure directory exists
         File folder = new File(dir);
         if (!folder.exists()) {
             folder.mkdirs();
@@ -36,7 +35,7 @@ public class SettingsManager {
     }
 
     public boolean isAllowExternal() {
-        return prefs.getBoolean(KEY_ALLOW_EXTERNAL, true); // Default true
+        return prefs.getBoolean(KEY_ALLOW_EXTERNAL, true);
     }
 
     public void setAllowExternal(boolean allow) {

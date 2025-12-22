@@ -10,10 +10,9 @@ import java.util.List;
 public class HistoryService {
     private static final String SERVER_HOST = "192.168.16.74";
     private static final int SERVER_PORT = 8888;
-    private static final int BUFFER_SIZE = 8192; // Larger buffer for history list
+    private static final int BUFFER_SIZE = 8192;
     private static final int TIMEOUT_MS = 5000;
 
-    // Protocol Constants
     private static final byte TYPE_LOG_TRANSFER = 10;
     private static final byte TYPE_GET_HISTORY = 11;
     private static final byte TYPE_DELETE_HISTORY = 12;
@@ -36,7 +35,6 @@ public class HistoryService {
 
     public void logTransfer(String sender, String receiver, String fileName, long size, String status,
             String filePath) {
-        // Run in background thread to avoid blocking UI or Transfer
         new Thread(() -> {
             try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     DataOutputStream dos = new DataOutputStream(baos)) {
@@ -49,7 +47,7 @@ public class HistoryService {
                 dos.writeUTF(status);
                 dos.writeUTF(filePath != null ? filePath : "");
 
-                sendRequest(baos.toByteArray()); // We don't verify response for log, best effort
+                sendRequest(baos.toByteArray());
                 System.out.println("[HistoryService] Logged transfer: " + fileName);
 
             } catch (IOException e) {
@@ -87,7 +85,6 @@ public class HistoryService {
                             try {
                                 filePath = dis.readUTF();
                             } catch (EOFException e) {
-                                // Ignore
                             }
 
                             TransferRecord rec = new TransferRecord(id, sender, receiver, fileName, size, timestamp,
@@ -97,12 +94,13 @@ public class HistoryService {
                         }
                     }
                 }
+                return history;
             }
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return history;
+        return null;
     }
 
     public boolean deleteHistory(int id, String username) {
@@ -155,7 +153,6 @@ public class HistoryService {
             return responseData;
 
         } catch (IOException e) {
-            // System.err.println("HistoryService Network Error: " + e.getMessage());
             return null;
         }
     }

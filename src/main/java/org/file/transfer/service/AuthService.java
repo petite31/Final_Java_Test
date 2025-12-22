@@ -10,7 +10,6 @@ public class AuthService {
     private static final int TIMEOUT_MS = 3000;
     private static final int MAX_RETRIES = 3;
 
-    // Protocol Constants
     private static final byte TYPE_LOGIN = 1;
     private static final byte TYPE_REGISTER = 2;
     private static final byte TYPE_LOGIN_RESPONSE = 3;
@@ -29,7 +28,6 @@ public class AuthService {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 DataOutputStream dos = new DataOutputStream(baos)) {
 
-            // Serialize Request
             dos.writeByte(type);
             dos.writeUTF(username);
             dos.writeUTF(password);
@@ -51,7 +49,6 @@ public class AuthService {
                         socket.send(sendPacket);
                         socket.receive(receivePacket);
 
-                        // Deserialize Response
                         try (ByteArrayInputStream bais = new ByteArrayInputStream(receivePacket.getData(),
                                 receivePacket.getOffset(), receivePacket.getLength());
                                 DataInputStream dis = new DataInputStream(bais)) {

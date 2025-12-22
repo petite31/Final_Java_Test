@@ -19,14 +19,12 @@ public class FileReceiver {
     private final Set<String> authenticatedIps = Collections.synchronizedSet(new HashSet<>());
     private final BlockFileManager blockManager = BlockFileManager.getInstance();
 
-    // Performance: Cache open file handles
     private final Map<String, RandomAccessFile> openFileHandles = new ConcurrentHashMap<>();
-    // Metadata: Store sender names by IP
     private final Map<String, String> senderNames = new ConcurrentHashMap<>();
 
     public FileReceiver(TransferManager manager, int requestedPort, String passkey) throws SocketException {
         this.myPasskey = passkey;
-        this.transport = TransportManager.getInstance().createTransport("UDP"); // Default to UDP
+        this.transport = TransportManager.getInstance().createTransport("UDP");
         try {
             this.transport.bind(requestedPort);
         } catch (IOException e) {
@@ -53,7 +51,6 @@ public class FileReceiver {
 
     public void close() {
         try {
-            // Close all open handles
             for (RandomAccessFile raf : openFileHandles.values()) {
                 try {
                     raf.close();
@@ -71,11 +68,14 @@ public class FileReceiver {
         new Thread(() -> {
             while (transport.isBound()) {
                 try {
+                    // [1. NHẬN DỮ LIỆU] Lắng nghe liên tục từ cổng mạng
                     byte[] data = transport.receive();
                     String senderIp = transport.getLastSenderAddress();
                     int senderPort = transport.getLastSenderPort();
 
                     boolean handled = false;
+
+                    // [2. KIỂM TRA LỆNH] Nếu gói tin nhỏ (< 1KB), có thể là lệnh (Command)
                     if (data.length < 1024) {
                         try {
                             String msg = new String(data).trim();
@@ -83,10 +83,10 @@ public class FileReceiver {
                                 handled = true;
                             }
                         } catch (Exception e) {
-                            // Not a string or command
                         }
                     }
 
+                    // [3. XỬ LÝ DỮ LIỆU] Nếu không phải lệnh -> Gói tin chứa nội dung file
                     if (!handled) {
                         handleDataPacket(data, senderIp, senderPort);
                     }
@@ -101,11 +101,8 @@ public class FileReceiver {
     }
 
     private boolean handleCommand(String msg, String senderIp, int senderPort) throws IOException {
-        if (msg.startsWith("PING_FROM_P2P_APP")) {
-            transport.sendTo("PONG_FROM_P2P_APP_OK".getBytes(), senderIp, senderPort);
-            return true;
-        }
 
+        // [LỆNH AUTH] Xác thực mật khẩu (Passkey)
         if (msg.startsWith("AUTH_REQUEST:")) {
             String receivedPasskey = msg.split(":")[1];
             if (this.myPasskey.equals(receivedPasskey)) {
@@ -119,29 +116,30 @@ public class FileReceiver {
             return true;
         }
 
-        // RESUME REQUEST V3
-        // FORMAT: FILE_REQ:<timestamp>:<totalPackets>:<fileName>:<senderName>
+        // [LỆNH HANDSHAKE] Yêu cầu gửi file từ Sender
         if (msg.startsWith("FILE_REQ:")) {
+            // Kiểm tra quyền nhận file (đã xác thực hoặc cho phép người lạ)
             if (!authenticatedIps.contains(senderIp) && !SettingsManager.getInstance().isAllowExternal()) {
-                // Ignore
                 return true;
             }
-            String[] parts = msg.split(":", 6); // Allow for extra parts if needed
+            String[] parts = msg.split(":", 6);
             if (parts.length >= 4) {
                 String fileName = parts[3];
                 int totalPackets = Integer.parseInt(parts[2]);
 
-                // V3: Extract sender name
                 if (parts.length >= 5) {
                     String senderName = parts[4];
                     senderNames.put(senderIp, senderName);
                 }
 
+                // [LOGIC RESUME] Kiểm tra file này đã nhận được phần nào chưa?
                 BitSet received = blockManager.getReceivedBlocks(fileName);
 
                 if (received.isEmpty()) {
+                    // Chưa có gì -> Gửi ACK đồng ý nhận mới từ đầu
                     transport.sendTo("FILE_ACK:START".getBytes(), senderIp, senderPort);
                 } else {
+                    // Đã có một phần -> Gửi Bitmap báo cho Sender biết để gửi tiếp (Resume)
                     sendBitmap(received, senderIp, senderPort);
                 }
             }
@@ -160,23 +158,24 @@ public class FileReceiver {
             Object obj = ois.readObject();
 
             if (obj instanceof FilePacket fp) {
-                // Send Ack
-                fileSender.sendAck(fp.packetId(), senderIp, senderPort);
+                // [RELIABLE UDP] Gửi xác nhận (ACK) ngay khi nhận được gói tin
+                String ack = "ACK_" + fp.packetId();
+                transport.sendTo(ack.getBytes(), senderIp, senderPort);
                 processFilePacket(fp, senderIp);
             }
 
         } catch (Exception e) {
-            // e.printStackTrace();
         }
     }
 
     private void processFilePacket(FilePacket fp, String senderIp) {
         try {
+            // Kiểm tra trùng lặp: Gói này đã ghi rồi thì thôi
             BitSet received = blockManager.getReceivedBlocks(fp.fileName());
             if (received.get(fp.packetId()))
-                return; // Duplicate
+                return;
 
-            // Performance: Use cached handle
+            // [GHI DỮ LIỆU] Mở file ở chế độ Random Access (Đọc/Ghi ngẫu nhiên)
             RandomAccessFile raf = openFileHandles.computeIfAbsent(fp.fileName(), k -> {
                 try {
                     String downloadDir = SettingsManager.getInstance().getDownloadDirectory();
@@ -192,19 +191,22 @@ public class FileReceiver {
             });
 
             if (raf != null) {
+                // Tính vị trí cần ghi: Offset = ID gói * Kích thước gói (60KB)
                 long offset = (long) fp.packetId() * 60000;
                 synchronized (raf) {
-                    raf.seek(offset);
-                    raf.write(fp.data());
+                    raf.seek(offset); // Nhảy đến đúng vị trí
+                    raf.write(fp.data()); // Ghi dữ liệu xuống đĩa
                 }
             }
 
+            // Đánh dấu gói tin đã hoàn thành
             blockManager.markBlockReceived(fp.fileName(), fp.packetId(), fp.totalPackets());
 
+            // [KIỂM TRA HOÀN THÀNH] Nếu đã nhận đủ 100% gói tin
             if (blockManager.isComplete(fp.fileName(), fp.totalPackets())) {
                 System.out.println("[Receiver] File complete: " + fp.fileName());
 
-                // Cleanup handle
+                // Đóng file lại để hệ điều hành lưu hẳn xuống đĩa
                 RandomAccessFile openRaf = openFileHandles.remove(fp.fileName());
                 if (openRaf != null) {
                     try {
@@ -213,14 +215,16 @@ public class FileReceiver {
                     }
                 }
 
+                // Xóa thông tin tạm trong bộ nhớ
                 blockManager.cleanup(fp.fileName());
 
                 File outputFile = new File(SettingsManager.getInstance().getDownloadDirectory(), fp.fileName());
 
+                // Xử lý đặc biệt nếu là thư mục (Manifest) hoặc file thường
                 if (fp.fileName().endsWith(".manifest")) {
                     processManifest(outputFile);
                 } else {
-                    // Log History
+                    // Ghi lại lịch sử nhận file
                     String senderName = senderNames.getOrDefault(senderIp, "Unknown Peer");
                     String myName = org.file.transfer.service.UserSession.getInstance().getUsername();
                     if (myName == null)

@@ -25,9 +25,6 @@ public class TransferStats {
     }
 
     public double getCurrentSpeedMBs() {
-        // This calculates average speed. For current speed we need sliding window.
-        // But simple average is often stable enough for simple apps.
-        // Let's implement a simple weighted average if needed, or just return average.
         return getSpeedMBs();
     }
 

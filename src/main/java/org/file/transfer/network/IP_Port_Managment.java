@@ -12,7 +12,6 @@ public class IP_Port_Managment {
             while (interfaces.hasMoreElements()) {
                 NetworkInterface nif = interfaces.nextElement();
 
-                // Skip loopback and down interfaces
                 if (nif.isLoopback() || !nif.isUp()) {
                     continue;
                 }
@@ -20,10 +19,9 @@ public class IP_Port_Managment {
                 String displayName = nif.getDisplayName().toLowerCase();
                 String name = nif.getName().toLowerCase();
 
-                // Advanced filtering for Virtual Adapters
                 if (displayName.contains("virtual") || displayName.contains("vmware") ||
                         displayName.contains("box") || displayName.contains("docker") ||
-                        displayName.contains("wsl") || // WSL
+                        displayName.contains("wsl") ||
                         name.contains("veth") || name.contains("docker") || name.contains("br-")) {
                     continue;
                 }
@@ -31,10 +29,8 @@ public class IP_Port_Managment {
                 Enumeration<InetAddress> addresses = nif.getInetAddresses();
                 while (addresses.hasMoreElements()) {
                     InetAddress addr = addresses.nextElement();
-                    // Return the first valid IPv4 that is not loopback
                     if (addr instanceof Inet4Address && !addr.isLoopbackAddress()) {
                         String ip = addr.getHostAddress();
-                        // Additional check to prefer standard private networks
                         if (ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.")) {
                             return ip;
                         }
@@ -42,10 +38,8 @@ public class IP_Port_Managment {
                 }
             }
         } catch (Exception ignored) {
-            // Fallback
         }
 
-        // Ultimate fallback
         try {
             return InetAddress.getLocalHost().getHostAddress();
         } catch (Exception e) {

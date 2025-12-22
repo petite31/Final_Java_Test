@@ -22,7 +22,6 @@ public class PasskeyManager {
     }
 
     public void generateNewPasskey() {
-        // No-op: Passkey is no longer used for verification
         System.out.println("[Security] Passkey generation disabled.");
         javafx.application.Platform.runLater(() -> currentPasskey.set("DEFAULT"));
     }

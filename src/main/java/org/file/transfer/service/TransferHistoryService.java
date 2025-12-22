@@ -10,12 +10,9 @@ import java.util.Set;
 public class TransferHistoryService {
     private static final TransferHistoryService INSTANCE = new TransferHistoryService();
 
-    // Map<ReceiverIP, Set<FileIdentifier>>
-    // FileIdentifier can be naive "Name_Size_LastModified"
     private final Map<String, Set<String>> history = Collections.synchronizedMap(new HashMap<>());
 
     private TransferHistoryService() {
-        // Load from disk if needed (Optional for now)
     }
 
     public static TransferHistoryService getInstance() {
@@ -35,7 +32,6 @@ public class TransferHistoryService {
     }
 
     private String getFileIdentifier(File file) {
-        // Simple hash: Name + Size + LastModified
         return file.getName() + "_" + file.length() + "_" + file.lastModified();
     }
 

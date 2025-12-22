@@ -28,10 +28,8 @@ public class DiscoveryService {
     private String deviceName;
     private final int fileTransferPort;
 
-    private BiConsumer<String, String> onPasskeyAccepted; // (ip, passkey) -> void
-    private QuadConsumer<String, String, Runnable, Runnable> onConnectionRequested; // (senderIp, senderName,
-                                                                                    // acceptCallback, rejectCallback)
-                                                                                    // -> void
+    private BiConsumer<String, String> onPasskeyAccepted;
+    private QuadConsumer<String, String, Runnable, Runnable> onConnectionRequested;
 
     @FunctionalInterface
     public interface TriConsumer<T, U, V> {
@@ -52,7 +50,6 @@ public class DiscoveryService {
         this.fileTransferPort = transferPort;
         this.deviceName = System.getProperty("user.name", "Unknown-User");
 
-        // Try to load from Session or XML
         try {
             if (org.file.transfer.service.UserSession.getInstance().isLoggedIn()) {
                 this.deviceName = org.file.transfer.service.UserSession.getInstance().getUsername();
@@ -62,7 +59,6 @@ public class DiscoveryService {
                     this.deviceName = saved;
             }
         } catch (Exception e) {
-            // ignore
         }
     }
 
@@ -118,22 +114,16 @@ public class DiscoveryService {
         scheduler.shutdownNow();
     }
 
-    // API to send PASSKEY_REQUEST
     public void sendPasskeyRequest(String targetIp, String passkey) {
-        // PASSKEY_REQUEST|<deviceName>|<passkey>|<listeningPort>
         String msg = "PASSKEY_REQUEST|" + deviceName + "|" + passkey + "|" + fileTransferPort;
         sendUdp(msg, targetIp, DISCOVERY_PORT);
     }
 
     private void broadcastPresence() {
-        // Refresh name from session if available
         if (org.file.transfer.service.UserSession.getInstance().isLoggedIn()) {
             this.deviceName = org.file.transfer.service.UserSession.getInstance().getUsername();
         }
 
-        // FORMAT:
-        // DISCOVER_PEER_REQUEST|<deviceName>|<listeningPort>|<mechanism>|<passkey>
-        // V3: Mechanism is always UDP.
         String passkey = org.file.transfer.service.TransferService.getInstance().getMyPasskey();
         if (passkey == null)
             passkey = "DEFAULT";
@@ -207,15 +197,12 @@ public class DiscoveryService {
 
             updatePeer(peerName, senderIp, peerTransferPort, mech, passkey);
         } else if ("PASSKEY_REQUEST".equals(type) && parts.length >= 4) {
-            // PASSKEY_REQUEST|<deviceName>|<passkey>|<listeningPort>
             String requesterName = parts[1];
             String attemptKey = parts[2];
             int requesterTransferPort = Integer.parseInt(parts[3]);
 
-            // V3: Simplified without strict passkey check. User just approves.
             if (onConnectionRequested != null) {
                 Runnable acceptAction = () -> {
-                    // No passkey check needed anymore, just accept.
                     System.out.println("[Discovery] User approved connection from " + requesterName);
                     String myKey = org.file.transfer.service.TransferService.getInstance().getMyPasskey();
                     if (myKey == null)
@@ -227,19 +214,16 @@ public class DiscoveryService {
 
                 Runnable rejectAction = () -> {
                     System.out.println("[Discovery] User refused connection from " + requesterName);
-                    // CONNECTION_REFUSED|<deviceName>
                     String reply = "CONNECTION_REFUSED|" + deviceName;
                     sendUdp(reply, senderIp, senderDiscoveryPort);
                 };
 
-                // Trigger UI approval
                 Platform.runLater(
                         () -> onConnectionRequested.accept(senderIp, requesterName, acceptAction, rejectAction));
             } else {
                 System.out.println("[Discovery] No connection request handler set, denying " + requesterName);
             }
         } else if ("PASSKEY_ACCEPT".equals(type) && parts.length >= 3) {
-            // PASSKEY_ACCEPT|<deviceName>|<passkey>
             String acceptorName = parts[1];
             String acceptedKey = parts[2];
             System.out.println("[Discovery] Passkey accepted by " + acceptorName);
@@ -267,7 +251,6 @@ public class DiscoveryService {
             String passkey = org.file.transfer.service.TransferService.getInstance().getMyPasskey();
             if (passkey == null)
                 passkey = "DEFAULT";
-            // DISCOVER_PEER_RESPONSE|<deviceName>|<myIp>|<fileTransferPort>|<mechanism>|<passkey>
             String msg = "DISCOVER_PEER_RESPONSE|" + deviceName + "|" + myIp + "|" + fileTransferPort + "|UDP|"
                     + passkey;
             sendUdp(msg, targetIp, targetPort);
@@ -294,7 +277,6 @@ public class DiscoveryService {
     }
 
     public void sendConnectionRequest(String ip) {
-        // Find the peer info to get the passkey
         String passkey = "";
         for (PeerInfo p : activePeers) {
             if (p.getIp().equals(ip)) {
@@ -311,7 +293,7 @@ public class DiscoveryService {
                 return p.getName();
             }
         }
-        return ip; // Fallback to IP if name not found
+        return ip;
     }
 
     private void cleanupPeers() {
