@@ -241,6 +241,7 @@ public class FileReceiver {
     }
 
     private void processManifest(File manifestFile) {
+        System.out.println("[Receiver] Processing manifest: " + manifestFile.getAbsolutePath());
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(manifestFile))) {
             FolderManifest manifest = (FolderManifest) ois.readObject();
             String baseDir = SettingsManager.getInstance().getDownloadDirectory();
@@ -252,8 +253,10 @@ public class FileReceiver {
                 f.getParentFile().mkdirs();
             }
             System.out.println("[Receiver] Directory structure created for " + manifest.getRootFolderName());
+            System.out.println("[Receiver] Manifest file saved at: " + manifestFile.getAbsolutePath());
         } catch (Exception e) {
             e.printStackTrace();
+            System.err.println("[Receiver] Failed to process manifest: " + e.getMessage());
         }
     }
 

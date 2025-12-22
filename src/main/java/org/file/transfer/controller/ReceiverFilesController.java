@@ -322,7 +322,17 @@ public class ReceiverFilesController {
             if (file.exists()) {
                 java.awt.Desktop.getDesktop().open(file);
             } else {
-                new Alert(Alert.AlertType.ERROR, "File not found: " + file.getAbsolutePath()).show();
+                // If file missing, try opening the parent folder
+                File parent = file.getParentFile();
+                if (parent != null && parent.exists()) {
+                    new Alert(Alert.AlertType.WARNING,
+                            "File not found: " + file.getName() + ".\nOpening folder instead: "
+                                    + parent.getAbsolutePath())
+                            .show();
+                    java.awt.Desktop.getDesktop().open(parent);
+                } else {
+                    new Alert(Alert.AlertType.ERROR, "File and folder not found: " + file.getAbsolutePath()).show();
+                }
             }
         } catch (Exception e) {
             new Alert(Alert.AlertType.ERROR, "Could not open file: " + e.getMessage()).show();
