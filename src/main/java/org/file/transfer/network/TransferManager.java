@@ -46,6 +46,9 @@ public class TransferManager {
                     callback.onTransferComplete();
             } else {
                 System.out.println("Auth failed");
+                if (callback != null) {
+                    callback.onError("Connection Timed Out or Auth Failed");
+                }
             }
         }).start();
     }
@@ -57,6 +60,9 @@ public class TransferManager {
                 fileSender.sendFiles(files, ip, 6969, callback);
             } else {
                 System.out.println("Auth failed");
+                if (callback != null) {
+                    callback.onError("Connection Timed Out or Auth Failed");
+                }
             }
         }).start();
     }

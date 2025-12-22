@@ -25,23 +25,30 @@ public class FileSender {
     }
 
     public boolean performHandshake(String ip, int port, String passkey) {
-        try {
-            String authMsg = "AUTH_REQUEST:" + passkey;
-            transport.sendTo(authMsg.getBytes(), ip, port);
+        int maxRetries = 5;
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                String authMsg = "AUTH_REQUEST:" + passkey;
+                transport.sendTo(authMsg.getBytes(), ip, port);
 
-            if (transport instanceof org.file.transfer.transport.TransportUDP udp) {
-                udp.getSocket().setSoTimeout(3000);
+                if (transport instanceof org.file.transfer.transport.TransportUDP udp) {
+                    udp.getSocket().setSoTimeout(2000); // 2 seconds timeout per try
+                }
+
+                byte[] response = transport.receive();
+                String reply = new String(response).trim();
+
+                if (reply.equals("AUTH_RESPONSE:OK")) {
+                    return true;
+                }
+            } catch (SocketTimeoutException e) {
+                System.out.println("[Sender] Handshake timeout, retrying... (" + (i + 1) + "/" + maxRetries + ")");
+            } catch (Exception e) {
+                System.out.println("[Sender] Handshake failed: " + e.getMessage());
+                return false;
             }
-
-            byte[] response = transport.receive();
-            String reply = new String(response).trim();
-
-            return reply.equals("AUTH_RESPONSE:OK");
-
-        } catch (Exception e) {
-            System.out.println("[Sender] Handshake failed: " + e.getMessage());
-            return false;
         }
+        return false;
     }
 
     public void sendFileOrFolder(File file, String targetIp, int targetPort, SendFilesController callback) {

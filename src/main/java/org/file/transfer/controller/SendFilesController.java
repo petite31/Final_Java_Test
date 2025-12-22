@@ -221,4 +221,10 @@ public class SendFilesController {
             tfPasskey.setText(passkey);
         }
     }
+
+    public void onError(String message) {
+        Platform.runLater(() -> {
+            lblStatus.setText("Error: " + message);
+        });
+    }
 }
