@@ -66,11 +66,16 @@ public class BlockFileManager {
 
     public void cleanup(String fileName) {
         activeTransfers.remove(fileName);
-        new File(fileName + ".transfer").delete();
+        getTransferFile(fileName).delete();
+    }
+
+    private File getTransferFile(String fileName) {
+        String dir = org.file.transfer.utils.SettingsManager.getInstance().getDownloadDirectory();
+        return new File(dir, fileName + ".transfer");
     }
 
     private TransferState loadFromDisk(String fileName) {
-        File meta = new File(fileName + ".transfer");
+        File meta = getTransferFile(fileName);
         if (!meta.exists())
             return new TransferState(0);
 
@@ -92,7 +97,7 @@ public class BlockFileManager {
     private void saveToDisk(String fileName, TransferState state) {
         Object lock = fileLocks.computeIfAbsent(fileName, k -> new Object());
         synchronized (lock) {
-            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(fileName + ".transfer"))) {
+            try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(getTransferFile(fileName)))) {
                 synchronized (state) {
                     oos.writeObject(state);
                 }
