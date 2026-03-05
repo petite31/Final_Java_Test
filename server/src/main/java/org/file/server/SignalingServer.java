@@ -9,122 +9,117 @@ public class SignalingServer {
     private static final int PORT = 8888;
     private final ExecutorService pool = Executors.newCachedThreadPool();
 
-    public void start() {
-        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            System.out.println("TCP Signaling Server started on port " + PORT);
+    // Protocol types (must match JavaFX client)
+    private static final byte TYPE_LOGIN = 1;
+    private static final byte TYPE_REGISTER = 2;
+    private static final byte TYPE_LOGIN_RESPONSE = 3;
+    private static final byte TYPE_REGISTER_RESPONSE = 4;
+    private static final byte TYPE_ERROR = 0;
 
-            while (true) {
-                Socket client = serverSocket.accept();
-                pool.execute(new ClientHandler(client));
+    // Extended Protocol types for P2P connection signaling
+    private static final byte TYPE_ONLINE_USERS = 5;
+
+    public void start() {
+        try (DatagramSocket serverSocket = new DatagramSocket(PORT)) {
+            System.out.println("UDP Signaling Server started on port " + PORT);
+
+            byte[] receiveData = new byte[8192];
+
+            while (!serverSocket.isClosed()) {
+                DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+                serverSocket.receive(receivePacket);
+
+                // Copy data to hand off to thread
+                byte[] data = new byte[receivePacket.getLength()];
+                System.arraycopy(receivePacket.getData(), receivePacket.getOffset(), data, 0,
+                        receivePacket.getLength());
+                InetAddress clientAddress = receivePacket.getAddress();
+                int clientPort = receivePacket.getPort();
+
+                pool.execute(() -> handlePacket(serverSocket, data, clientAddress, clientPort));
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static class ClientHandler implements Runnable {
-        private final Socket socket;
-        private DataInputStream dis;
-        private DataOutputStream dos;
-        private String username;
+    private void handlePacket(DatagramSocket socket, byte[] data, InetAddress address, int port) {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
+                DataInputStream dis = new DataInputStream(bais)) {
 
-        // Protocol types (must match JavaFX client)
-        private static final byte TYPE_LOGIN = 1;
-        private static final byte TYPE_REGISTER = 2;
-        private static final byte TYPE_LOGIN_RESPONSE = 3;
-        private static final byte TYPE_REGISTER_RESPONSE = 4;
-        private static final byte TYPE_ERROR = 0;
+            if (dis.available() == 0)
+                return;
 
-        // Extended Protocol types for P2P connection signaling
-        private static final byte TYPE_ONLINE_USERS = 5;
-        // 6: REQUEST_CONNECT (Client A wants to transfer to B)
-        // 7: CONNECT_INFO (Server sends IP/Port data of A to B and B to A)
-        // 8: RELAY_REQUEST (Fallback to Relay)
-
-        public ClientHandler(Socket socket) {
-            this.socket = socket;
-        }
-
-        @Override
-        public void run() {
-            try {
-                dis = new DataInputStream(socket.getInputStream());
-                dos = new DataOutputStream(socket.getOutputStream());
-
-                while (!socket.isClosed()) {
-                    byte type = dis.readByte();
-
-                    switch (type) {
-                        case TYPE_LOGIN:
-                            handleLogin();
-                            break;
-                        case TYPE_REGISTER:
-                            handleRegister();
-                            break;
-                        case -1: // Disconnect Custom Code
-                            disconnect();
-                            return;
-                        default:
-                            System.err.println("Unknown packet type: " + type);
-                    }
-                }
-            } catch (EOFException e) {
-                // Disconnected
-                disconnect();
-            } catch (IOException e) {
-                disconnect();
+            byte type = dis.readByte();
+            switch (type) {
+                case TYPE_LOGIN:
+                    handleLogin(socket, dis, address, port);
+                    break;
+                case TYPE_REGISTER:
+                    handleRegister(socket, dis, address, port);
+                    break;
+                default:
+                    System.err.println("Unknown packet type: " + type);
             }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+    }
 
-        private void handleLogin() throws IOException {
-            String user = dis.readUTF();
-            String pass = dis.readUTF();
+    private void handleLogin(DatagramSocket socket, DataInputStream dis, InetAddress address, int port)
+            throws IOException {
+        String user = dis.readUTF();
+        String pass = dis.readUTF();
 
-            boolean isValid = DatabaseManager.validateUser(user, pass);
+        boolean isValid = DatabaseManager.validateUser(user, pass);
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream dos = new DataOutputStream(baos)) {
 
             dos.writeByte(TYPE_LOGIN_RESPONSE);
             dos.writeBoolean(isValid);
 
             if (isValid) {
-                this.username = user;
                 String role = DatabaseManager.getUserRole(user);
                 dos.writeUTF("Login successful");
                 dos.writeUTF(role);
 
-                SessionManager.addClient(user, socket.getInetAddress().getHostAddress(), socket.getPort());
+                // Treat signaling over UDP for tracking
+                SessionManager.addClient(user, address.getHostAddress(), port);
             } else {
                 dos.writeUTF("Invalid username or password");
             }
+            dos.flush();
+            byte[] responseData = baos.toByteArray();
+            socket.send(new DatagramPacket(responseData, responseData.length, address, port));
+        }
+    }
+
+    private void handleRegister(DatagramSocket socket, DataInputStream dis, InetAddress address, int port)
+            throws IOException {
+        String user = dis.readUTF();
+        String pass = dis.readUTF();
+        String role = "USER";
+
+        if (dis.available() > 0) {
+            try {
+                role = dis.readUTF();
+            } catch (EOFException e) {
+            }
         }
 
-        private void handleRegister() throws IOException {
-            String user = dis.readUTF();
-            String pass = dis.readUTF();
-            String role = "USER";
+        boolean success = DatabaseManager.registerUser(user, pass, role);
 
-            // Depends on client implementation, role might not be sent
-            if (dis.available() > 0) {
-                try {
-                    role = dis.readUTF();
-                } catch (EOFException e) {
-                }
-            }
-
-            boolean success = DatabaseManager.registerUser(user, pass, role);
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream dos = new DataOutputStream(baos)) {
 
             dos.writeByte(TYPE_REGISTER_RESPONSE);
             dos.writeBoolean(success);
             dos.writeUTF(success ? "Registration successful" : "Username already exists");
-        }
+            dos.flush();
 
-        private void disconnect() {
-            if (username != null) {
-                SessionManager.removeClient(username);
-            }
-            try {
-                socket.close();
-            } catch (IOException ignore) {
-            }
+            byte[] responseData = baos.toByteArray();
+            socket.send(new DatagramPacket(responseData, responseData.length, address, port));
         }
     }
 }

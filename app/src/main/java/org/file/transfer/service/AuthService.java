@@ -4,7 +4,7 @@ import java.io.*;
 import java.net.*;
 
 public class AuthService {
-    private static final String SERVER_HOST = "192.168.16.5";
+    private static final String SERVER_HOST = "192.168.1.17";
     private static final int SERVER_PORT = 8888;
     private static final int BUFFER_SIZE = 4096;
     private static final int TIMEOUT_MS = 3000;

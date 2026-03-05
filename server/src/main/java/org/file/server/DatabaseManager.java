@@ -8,9 +8,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class DatabaseManager {
-    private static final String URL = "jdbc:mysql://localhost:3306/file_transfer?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC";
+    private static final String URL = "jdbc:mysql://localhost:3306/file_transfer";
     private static final String USER = "root"; // Update with user's MySQL username
-    private static final String PASSWORD = "root"; // Update with user's MySQL password
+    private static final String PASSWORD = ""; // Update with user's MySQL password
 
     // Ensure driver is loaded
     static {
