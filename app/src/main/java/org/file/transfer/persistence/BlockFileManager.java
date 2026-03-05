@@ -103,7 +103,7 @@ public class BlockFileManager {
     }
 
     private File getTransferFile(String fileName) {
-        String dir = org.file.transfer.utils.SettingsManager.getInstance().getDownloadDirectory();
+        String dir = org.file.transfer.util.SettingsManager.getInstance().getDownloadDirectory();
         return new File(dir, fileName + ".transfer");
     }
 

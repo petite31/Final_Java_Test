@@ -6,7 +6,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
 import javafx.stage.DirectoryChooser;
 import org.file.transfer.transport.TransportManager;
-import org.file.transfer.utils.SettingsManager;
+import org.file.transfer.util.SettingsManager;
 
 import java.io.File;
 

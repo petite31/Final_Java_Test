@@ -1,4 +1,4 @@
-package org.file.transfer.utils;
+package org.file.transfer.util;
 
 import java.io.File;
 import java.io.FileInputStream;

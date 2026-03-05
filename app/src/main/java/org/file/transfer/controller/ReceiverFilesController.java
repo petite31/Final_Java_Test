@@ -11,7 +11,7 @@ import javafx.scene.paint.Color;
 import org.file.transfer.model.TransferRecord;
 import org.file.transfer.service.HistoryService;
 import org.file.transfer.service.UserSession;
-import org.file.transfer.utils.SettingsManager;
+import org.file.transfer.util.SettingsManager;
 
 import java.io.File;
 import java.text.SimpleDateFormat;

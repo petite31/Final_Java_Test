@@ -1,4 +1,4 @@
-package org.file.transfer.utils;
+package org.file.transfer.util;
 
 public class Logger {
     public static void info(String msg) {

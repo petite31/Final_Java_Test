@@ -5,7 +5,7 @@ import org.file.transfer.model.FolderManifest;
 import org.file.transfer.persistence.BlockFileManager;
 import org.file.transfer.transport.Transport;
 import org.file.transfer.transport.TransportManager;
-import org.file.transfer.utils.SettingsManager;
+import org.file.transfer.util.SettingsManager;
 
 import java.io.*;
 import java.net.*;
