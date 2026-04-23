@@ -148,25 +148,30 @@ public class ReceiverFilesController {
             pathCol.setCellValueFactory(cell -> cell.getValue().filePathProperty());
         }
 
+// Thiết lập cho cột thao tác (Action)
         actionCol.setCellFactory(param -> new TableCell<>() {
             private final Button btnOpen = new Button("Open");
             private final Button btnDelete = new Button("Delete");
-            private final HBox pane = new HBox(5, btnOpen, btnDelete);
+            private final HBox pane = new HBox(8, btnOpen, btnDelete); // Khoảng cách giữa 2 nút là 8px
 
             {
-                btnOpen.getStyleClass().add("button-icon");
-                btnOpen.setStyle("-fx-text-fill: #007a82; -fx-font-size: 12px; -fx-font-weight: bold;");
+                // Cấu hình nút Open (Mở file)
+                btnOpen.getStyleClass().add("button-action");
+                btnOpen.setStyle("-fx-text-fill: #007a82; -fx-font-weight: bold;");
                 btnOpen.setOnAction(event -> {
                     TransferRecord record = getTableView().getItems().get(getIndex());
-                    handleOpen(record);
+                    handleOpen(record); // Gọi hàm mở file đã có sẵn
                 });
 
-                btnDelete.getStyleClass().add("button-icon");
-                btnDelete.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
+                // Cấu hình nút Delete (Xoá lịch sử)
+                btnDelete.getStyleClass().add("button-action");
+                btnDelete.setStyle("-fx-text-fill: #e74c3c;"); // Màu đỏ đặc trưng cho hành động xoá
                 btnDelete.setOnAction(event -> {
                     TransferRecord record = getTableView().getItems().get(getIndex());
-                    handleDelete(record);
+                    handleDelete(record); // Gọi hàm xoá lịch sử đã có sẵn
                 });
+
+                pane.setAlignment(javafx.geometry.Pos.CENTER);
             }
 
             @Override
@@ -177,14 +182,16 @@ public class ReceiverFilesController {
                 } else {
                     TransferRecord record = getTableView().getItems().get(getIndex());
                     if (record != null) {
+                        // Kiểm tra sự tồn tại của file để bật/tắt nút Open
                         File f;
                         String storedPath = record.getFilePath();
                         if (storedPath != null && !storedPath.isEmpty()) {
                             f = new File(storedPath);
                         } else {
-                            f = new File(SettingsManager.getInstance().getDownloadDirectory(), record.getFileName());
+                            // Mặc định kiểm tra trong thư mục download của ứng dụng
+                            f = new File(org.file.transfer.util.SettingsManager.getInstance().getDownloadDirectory(), record.getFileName());
                         }
-                        btnOpen.setDisable(!f.exists());
+                        btnOpen.setDisable(!f.exists()); // Vô hiệu hoá nếu không tìm thấy file cục bộ
                     }
                     setGraphic(pane);
                 }
