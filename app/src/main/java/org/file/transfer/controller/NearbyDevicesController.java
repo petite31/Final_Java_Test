@@ -37,38 +37,65 @@ public class NearbyDevicesController {
         colPort.setCellValueFactory(cellData -> cellData.getValue().portProperty());
         colMech.setCellValueFactory(cellData -> cellData.getValue().mechanismProperty());
         colStatus.setCellValueFactory(
-                cellData -> javafx.beans.binding.Bindings.createStringBinding(cellData.getValue()::getStatus));
+                cellData -> javafx.beans.binding.Bindings.createStringBinding(cellData.getValue()::getStatus, cellData.getValue().nameProperty())); // Lắng nghe thay đổi
 
         tablePeers.setItems(discoveryService.getActivePeers());
 
+        // Chỉ bật nút Connect nếu thiết bị đang Online
         tablePeers.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            btnConnect.setDisable(newVal == null);
+            boolean isOnline = newVal != null && "Online".equals(newVal.getStatus());
+            btnConnect.setDisable(!isOnline);
+            btnConnect.setText("Connect");
         });
 
         tablePeers.setRowFactory(tv -> {
             TableRow<PeerInfo> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
+                // Nhấn đúp để kết nối
                 if (event.getClickCount() == 2 && (!row.isEmpty())) {
-                    connectToPeer();
+                    PeerInfo selected = row.getItem();
+                    if ("Online".equals(selected.getStatus())) {
+                        connectToPeer();
+                    }
                 }
             });
             return row;
         });
+
+        // Lắng nghe sự kiện bị từ chối kết nối để reset nút
+        discoveryService.setOnConnectionRefused(() -> {
+            btnConnect.setText("Connect");
+            btnConnect.setDisable(false);
+        });
+    }
+
+    @FXML
+    private void connectToPeer() {
+        PeerInfo selected = tablePeers.getSelectionModel().getSelectedItem();
+        if (selected != null && "Online".equals(selected.getStatus())) {
+            discoveryService.sendConnectionRequest(selected.getIp());
+            btnConnect.setDisable(true);
+            btnConnect.setText("Waiting...");
+
+            // Tùy chọn: Đặt Timeout 10 giây nếu bên kia không phản hồi
+            new Thread(() -> {
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException ignored) {}
+
+                javafx.application.Platform.runLater(() -> {
+                    if ("Waiting...".equals(btnConnect.getText())) {
+                        btnConnect.setText("Connect");
+                        btnConnect.setDisable(false);
+                        discoveryService.setOnConnectionRefused(null); // Tránh lỗi
+                    }
+                });
+            }).start();
+        }
     }
 
     @FXML
     private void refreshPeers() {
     }
 
-    @FXML
-    private void connectToPeer() {
-        PeerInfo selected = tablePeers.getSelectionModel().getSelectedItem();
-        if (selected != null) {
-
-            discoveryService.sendConnectionRequest(selected.getIp());
-
-            btnConnect.setDisable(true);
-            btnConnect.setText("Waiting...");
-        }
-    }
 }

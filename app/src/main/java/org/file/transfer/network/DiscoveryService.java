@@ -28,6 +28,8 @@ public class DiscoveryService {
     private String deviceName;
     private final int fileTransferPort;
 
+    private Runnable onConnectionRefusedCallback;
+
     private BiConsumer<String, String> onPasskeyAccepted;
     private QuadConsumer<String, String, Runnable, Runnable> onConnectionRequested;
 
@@ -232,17 +234,24 @@ public class DiscoveryService {
             if (onPasskeyAccepted != null) {
                 Platform.runLater(() -> onPasskeyAccepted.accept(senderIp, acceptedKey));
             }
-        } else if ("CONNECTION_REFUSED".equals(type) && parts.length >= 2) {
-            String refuser = parts[1];
-            Platform.runLater(() -> {
-                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                        javafx.scene.control.Alert.AlertType.INFORMATION);
-                alert.setTitle("Connection Refused");
-                alert.setHeaderText(null);
-                alert.setContentText(refuser + " refused this connection, please try again.");
-                alert.showAndWait();
-            });
         }
+        else if ("CONNECTION_REFUSED".equals(type) && parts.length >= 2) {
+        String refuser = parts[1];
+        Platform.runLater(() -> {
+            // Hiển thị thông báo bị từ chối
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.WARNING);
+            alert.setTitle("Connection Refused");
+            alert.setHeaderText("Kết nối bị từ chối");
+            alert.setContentText("Người dùng " + refuser + " đã từ chối yêu cầu kết nối của bạn.");
+            alert.showAndWait();
+
+            // Gọi callback để reset UI ở màn hình Nearby Devices
+            if (onConnectionRefusedCallback != null) {
+                onConnectionRefusedCallback.run();
+            }
+        });
+    }
     }
 
     private void sendResponse(String targetIp, int targetPort) {
@@ -307,5 +316,8 @@ public class DiscoveryService {
                 Platform.runLater(() -> activePeers.remove(removed));
             }
         }
+    }
+    public void setOnConnectionRefused(Runnable callback) {
+        this.onConnectionRefusedCallback = callback;
     }
 }

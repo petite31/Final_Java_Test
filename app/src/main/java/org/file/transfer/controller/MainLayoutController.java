@@ -34,25 +34,26 @@ public class MainLayoutController {
                     .setOnConnectionRequested((senderIp, senderName, acceptAction, rejectAction) -> {
                         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                                 javafx.scene.control.Alert.AlertType.CONFIRMATION);
-                        alert.setTitle("Connection Request");
-                        alert.setHeaderText("Incoming Connection");
-                        alert.setContentText(
-                                senderName + " (" + senderIp + ") wants to connect.\nAllow this connection?");
+                        alert.setTitle("Yêu cầu kết nối (Nearby Share)");
+                        alert.setHeaderText("Có thiết bị muốn kết nối với bạn!");
+                        alert.setContentText("Thiết bị: " + senderName + "\nIP: " + senderIp +
+                                "\n\nBạn có muốn chấp nhận kết nối và chia sẻ Passkey của mình không?");
 
-                        alert.showAndWait().ifPresent(response -> {
-                            if (response == javafx.scene.control.ButtonType.OK) {
-                                acceptAction.run();
-                            } else {
-                                System.out.println("[UI] User denied connection from " + senderName);
-                                rejectAction.run();
-                            }
-                        });
+                        // Dùng if-else truyền thống, không dùng .ifPresent(...) nữa
+                        java.util.Optional<javafx.scene.control.ButtonType> result = alert.showAndWait();
+                        if (result.isPresent() && result.get() == javafx.scene.control.ButtonType.OK) {
+                            acceptAction.run(); // Sẽ gửi PASSKEY_ACCEPT về lại
+                        } else {
+                            rejectAction.run(); // Sẽ gửi CONNECTION_REFUSED
+                        }
                     });
 
             DiscoveryService.getInstance().setOnPasskeyAccepted((ip, passkey) -> {
+                // Tự động chuyển sang màn hình SendFiles và điền thông tin
                 showSendWithPeer(ip, passkey);
             });
-        } catch (IllegalStateException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

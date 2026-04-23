@@ -6,6 +6,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DatabaseManager {
     private static final String URL = "jdbc:mysql://localhost:3306/file_transfer";
@@ -121,5 +123,82 @@ public class DatabaseManager {
             e.printStackTrace();
         }
         return -1;
+    }
+
+    public static class TransferRecord {
+        public int id;
+        public String sender;
+        public String receiver;
+        public String fileName;
+        public long size;
+        public String status;
+        public String timestamp;
+    }
+
+    public static List<TransferRecord> getTransferHistory(String username) {
+        List<TransferRecord> list = new ArrayList<>();
+        String query = "SELECT t.id, s.username as sender, r.username as receiver, t.file_name, t.file_size, t.status, t.transfer_date "
+                +
+                "FROM transfer_history t " +
+                "JOIN users s ON t.sender_id = s.id " +
+                "JOIN users r ON t.receiver_id = r.id " +
+                "WHERE s.username = ? OR r.username = ? " +
+                "ORDER BY t.transfer_date DESC";
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, username);
+            stmt.setString(2, username);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    TransferRecord rec = new TransferRecord();
+                    rec.id = rs.getInt("id");
+                    rec.sender = rs.getString("sender");
+                    rec.receiver = rs.getString("receiver");
+                    rec.fileName = rs.getString("file_name");
+                    rec.size = rs.getLong("file_size");
+                    rec.status = rs.getString("status");
+                    rec.timestamp = rs.getTimestamp("transfer_date").toString();
+                    list.add(rec);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public static boolean deleteHistory(int id, String username) {
+        String query = "DELETE t FROM transfer_history t " +
+                "JOIN users s ON t.sender_id = s.id " +
+                "JOIN users r ON t.receiver_id = r.id " +
+                "WHERE t.id = ? AND (s.username = ? OR r.username = ?)";
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, id);
+            stmt.setString(2, username);
+            stmt.setString(3, username);
+            int rows = stmt.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public static boolean deleteAllHistory(String username) {
+        String query = "DELETE t FROM transfer_history t " +
+                "JOIN users s ON t.sender_id = s.id " +
+                "JOIN users r ON t.receiver_id = r.id " +
+                "WHERE s.username = ? OR r.username = ?";
+        try (Connection conn = getConnection();
+                PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setString(1, username);
+            stmt.setString(2, username);
+            int rows = stmt.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 }

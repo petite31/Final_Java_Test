@@ -19,6 +19,14 @@ public class SignalingServer {
     // Extended Protocol types for P2P connection signaling
     private static final byte TYPE_ONLINE_USERS = 5;
 
+    // History Protocol types
+    private static final byte TYPE_LOG_TRANSFER = 10;
+    private static final byte TYPE_GET_HISTORY = 11;
+    private static final byte TYPE_DELETE_HISTORY = 12;
+    private static final byte TYPE_DELETE_ALL_HISTORY = 13;
+    private static final byte TYPE_SUCCESS = 100;
+    private static final byte TYPE_HISTORY_DATA = 101;
+
     public void start() {
         try (DatagramSocket serverSocket = new DatagramSocket(PORT)) {
             System.out.println("UDP Signaling Server started on port " + PORT);
@@ -57,6 +65,18 @@ public class SignalingServer {
                     break;
                 case TYPE_REGISTER:
                     handleRegister(socket, dis, address, port);
+                    break;
+                case TYPE_LOG_TRANSFER:
+                    handleLogTransfer(socket, dis, address, port);
+                    break;
+                case TYPE_GET_HISTORY:
+                    handleGetHistory(socket, dis, address, port);
+                    break;
+                case TYPE_DELETE_HISTORY:
+                    handleDeleteHistory(socket, dis, address, port);
+                    break;
+                case TYPE_DELETE_ALL_HISTORY:
+                    handleDeleteAllHistory(socket, dis, address, port);
                     break;
                 default:
                     System.err.println("Unknown packet type: " + type);
@@ -118,6 +138,81 @@ public class SignalingServer {
             dos.writeUTF(success ? "Registration successful" : "Username already exists");
             dos.flush();
 
+            byte[] responseData = baos.toByteArray();
+            socket.send(new DatagramPacket(responseData, responseData.length, address, port));
+        }
+    }
+
+    private void handleLogTransfer(DatagramSocket socket, DataInputStream dis, InetAddress address, int port)
+            throws IOException {
+        String sender = dis.readUTF();
+        String receiver = dis.readUTF();
+        String fileName = dis.readUTF();
+        long size = dis.readLong();
+        String status = dis.readUTF();
+        String filePath = "";
+        try {
+            filePath = dis.readUTF();
+        } catch (EOFException e) {
+            // filePath might be missing
+        }
+
+        DatabaseManager.logTransferStatus(sender, receiver, fileName, size, status);
+        // Fire-and-forget: HistoryService on client doesn't wait for a response for
+        // logTransfer
+    }
+
+    private void handleGetHistory(DatagramSocket socket, DataInputStream dis, InetAddress address, int port)
+            throws IOException {
+        String username = dis.readUTF();
+        java.util.List<DatabaseManager.TransferRecord> history = DatabaseManager.getTransferHistory(username);
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeByte(TYPE_HISTORY_DATA);
+            dos.writeInt(history.size());
+            for (DatabaseManager.TransferRecord rec : history) {
+                dos.writeInt(rec.id);
+                dos.writeUTF(rec.sender);
+                dos.writeUTF(rec.receiver);
+                dos.writeUTF(rec.fileName);
+                dos.writeLong(rec.size);
+                dos.writeUTF(rec.timestamp);
+                dos.writeUTF(rec.status);
+                dos.writeUTF(""); // empty filepath
+            }
+            dos.flush();
+            byte[] responseData = baos.toByteArray();
+            socket.send(new DatagramPacket(responseData, responseData.length, address, port));
+        }
+    }
+
+    private void handleDeleteHistory(DatagramSocket socket, DataInputStream dis, InetAddress address, int port)
+            throws IOException {
+        int id = dis.readInt();
+        String username = dis.readUTF();
+
+        boolean success = DatabaseManager.deleteHistory(id, username);
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeByte(success ? TYPE_SUCCESS : TYPE_ERROR);
+            dos.flush();
+            byte[] responseData = baos.toByteArray();
+            socket.send(new DatagramPacket(responseData, responseData.length, address, port));
+        }
+    }
+
+    private void handleDeleteAllHistory(DatagramSocket socket, DataInputStream dis, InetAddress address, int port)
+            throws IOException {
+        String username = dis.readUTF();
+
+        boolean success = DatabaseManager.deleteAllHistory(username);
+
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream dos = new DataOutputStream(baos)) {
+            dos.writeByte(success ? TYPE_SUCCESS : TYPE_ERROR);
+            dos.flush();
             byte[] responseData = baos.toByteArray();
             socket.send(new DatagramPacket(responseData, responseData.length, address, port));
         }
