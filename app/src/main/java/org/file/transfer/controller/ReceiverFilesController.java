@@ -155,20 +155,20 @@ public class ReceiverFilesController {
             private final HBox pane = new HBox(8, btnOpen, btnDelete); // Khoảng cách giữa 2 nút là 8px
 
             {
-                // Cấu hình nút Open (Mở file)
                 btnOpen.getStyleClass().add("button-action");
                 btnOpen.setStyle("-fx-text-fill: #007a82; -fx-font-weight: bold;");
+                btnOpen.setMinWidth(Button.USE_PREF_SIZE);
                 btnOpen.setOnAction(event -> {
                     TransferRecord record = getTableView().getItems().get(getIndex());
-                    handleOpen(record); // Gọi hàm mở file đã có sẵn
+                    handleOpen(record);
                 });
 
-                // Cấu hình nút Delete (Xoá lịch sử)
                 btnDelete.getStyleClass().add("button-action");
-                btnDelete.setStyle("-fx-text-fill: #e74c3c;"); // Màu đỏ đặc trưng cho hành động xoá
+                btnDelete.setStyle("-fx-text-fill: #e74c3c;");
+                btnDelete.setMinWidth(Button.USE_PREF_SIZE); // <--- THÊM DÒNG NÀY
                 btnDelete.setOnAction(event -> {
                     TransferRecord record = getTableView().getItems().get(getIndex());
-                    handleDelete(record); // Gọi hàm xoá lịch sử đã có sẵn
+                    handleDelete(record);
                 });
 
                 pane.setAlignment(javafx.geometry.Pos.CENTER);
