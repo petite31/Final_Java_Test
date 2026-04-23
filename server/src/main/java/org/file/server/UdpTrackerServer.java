@@ -5,7 +5,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 
 public class UdpTrackerServer {
-    private static final int PORT = 8889; // Same as client's DiscoveryService port or a specific tracker port
+    private static final int PORT = 8891; // Same as client's DiscoveryService port or a specific tracker port
 
     public void start() {
         try (DatagramSocket serverSocket = new DatagramSocket(PORT)) {

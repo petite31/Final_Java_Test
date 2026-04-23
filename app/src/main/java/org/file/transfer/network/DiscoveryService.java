@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.net.InetSocketAddress;
 
 public class DiscoveryService {
     private static final int DISCOVERY_PORT = 8889;
@@ -95,7 +96,9 @@ public class DiscoveryService {
         running = true;
 
         try {
-            socket = new DatagramSocket(DISCOVERY_PORT);
+            socket = new DatagramSocket(null); // Khởi tạo chưa gán port
+            socket.setReuseAddress(true);      // Cho phép dùng chung port (SO_REUSEADDR)
+            socket.bind(new InetSocketAddress(DISCOVERY_PORT)); // Gán port sau
             socket.setBroadcast(true);
             System.out.println("[Discovery] Listening on port " + DISCOVERY_PORT);
         } catch (SocketException e) {
