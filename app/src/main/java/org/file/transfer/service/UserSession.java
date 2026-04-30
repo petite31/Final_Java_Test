@@ -3,6 +3,7 @@ package org.file.transfer.service;
 public class UserSession {
     private static UserSession instance;
 
+    private int userId;
     private String username;
     private String role;
     private boolean isLoggedIn;
@@ -39,5 +40,13 @@ public class UserSession {
 
     public String getRole() {
         return role;
+    }
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
     }
 }

@@ -21,6 +21,7 @@
                </VBox.margin>
             </Label>
             <Button fx:id="btnHome" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showHome" styleClass="nav-button" text="Home" />
+            <Button fx:id="btnCommunity" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showCommunity" styleClass="nav-button" text="Community" />
             <Button fx:id="btnSend" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showSend" styleClass="nav-button" text="Send Files" />
             <Button fx:id="btnReceive" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showReceive" styleClass="nav-button" text="History transfer" />
             <Button fx:id="btnLanDiscovery" alignment="BASELINE_LEFT" graphicTextGap="15.0" maxWidth="Infinity" mnemonicParsing="false" onAction="#showNearbyDevices" styleClass="nav-button" text="Nearby Devices" />

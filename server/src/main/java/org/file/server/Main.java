@@ -35,6 +35,10 @@ public class Main {
         relayThread.setName("RelayServer-Thread");
         relayThread.start();
 
+        Thread marketServer = new Thread(() -> {
+            new MarketServer().start();
+        });
+
         System.out.println("All services started successfully.");
     }
 }

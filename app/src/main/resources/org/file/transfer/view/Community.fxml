@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="20.0" styleClass="root" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.CommunityController">
+    <padding>
+        <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+    </padding>
+
+    <HBox alignment="CENTER_LEFT" spacing="20.0">
+        <children>
+            <Button onAction="#handleBack" styleClass="button-secondary" text="← Back">
+                <HBox.margin>
+                    <Insets right="10.0" />
+                </HBox.margin>
+            </Button>
+
+            <VBox HBox.hgrow="ALWAYS">
+                <Label styleClass="title-label" text="Community Marketplace" />
+                <Label styleClass="subtitle-label" text="Share and explore together" />
+            </VBox>
+            <Button onAction="#handleSellFile" styleClass="button-primary" text="Sell" />
+        </children>
+    </HBox>
+
+    <VBox VBox.vgrow="ALWAYS" styleClass="card" style="-fx-padding: 0;">
+        <TableView fx:id="tableMarket" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="colFileName" prefWidth="200.0" text="File name" />
+                <TableColumn fx:id="colFileSize" prefWidth="100.0" text="File size" />
+                <TableColumn fx:id="colSeller" prefWidth="90.0" text="Seller" />
+                <TableColumn fx:id="colPrice" prefWidth="90.0" text="Price (VNĐ)" />
+                <TableColumn fx:id="colAction" prefWidth="160.0" text="Choose" />
+            </columns>
+            <columnResizePolicy>
+                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+            </columnResizePolicy>
+        </TableView>
+    </VBox>
+</VBox>

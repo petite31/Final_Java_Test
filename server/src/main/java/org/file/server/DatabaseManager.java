@@ -24,6 +24,8 @@ public class DatabaseManager {
         }
     }
 
+    private Connection connection;
+
     public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASSWORD);
     }
@@ -201,4 +203,21 @@ public class DatabaseManager {
         }
         return false;
     }
+
+    public boolean insertMarketFile(String fileName, long fileSize, String filePath, int sellerId, long price) {
+        String query = "INSERT INTO market_files (file_name, file_size, file_path, seller_id, price) VALUES (?, ?, ?, ?, ?)";
+        try (java.sql.PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, fileName);
+            pstmt.setLong(2, fileSize);
+            pstmt.setString(3, filePath);
+            pstmt.setInt(4, sellerId);
+            pstmt.setLong(5, price);
+            int affectedRows = pstmt.executeUpdate();
+            return affectedRows > 0;
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
 }

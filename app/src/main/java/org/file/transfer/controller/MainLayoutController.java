@@ -58,7 +58,7 @@ public class MainLayoutController {
     }
 
     @FXML
-    private void showHome() {
+    void showHome() {
         loadView("Home.fxml", null);
     }
 
@@ -106,4 +106,5 @@ public class MainLayoutController {
             e.printStackTrace();
         }
     }
+
 }

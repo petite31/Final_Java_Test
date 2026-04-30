@@ -100,3 +100,18 @@
     -fx-opacity: 0.5;
     -fx-cursor: default;
 }
+
+.button-secondary {
+    -fx-background-color: transparent;
+    -fx-text-fill: #007a82;
+    -fx-border-color: #007a82;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 20;
+    -fx-padding: 8 16;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.button-secondary:hover {
+    -fx-background-color: rgba(0, 122, 130, 0.1);
+}
