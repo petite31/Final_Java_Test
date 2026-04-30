@@ -38,6 +38,8 @@ public class Main {
         Thread marketServer = new Thread(() -> {
             new MarketServer().start();
         });
+        marketServer.setName("MarketServer-Thread");
+        marketServer.start();
 
         System.out.println("All services started successfully.");
     }

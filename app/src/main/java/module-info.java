@@ -1,4 +1,5 @@
 module org.file.transfer {
+    requires transitive javafx.graphics;
     requires javafx.controls;
     requires javafx.fxml;
     requires java.sql;

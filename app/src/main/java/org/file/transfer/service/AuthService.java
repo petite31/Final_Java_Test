@@ -14,7 +14,6 @@ public class AuthService {
     private static final byte TYPE_REGISTER = 2;
     private static final byte TYPE_LOGIN_RESPONSE = 3;
     private static final byte TYPE_REGISTER_RESPONSE = 4;
-    private static final byte TYPE_ERROR = 0;
 
     public boolean login(String username, String password, StringBuilder messageBuffer) {
         return sendRequest(TYPE_LOGIN, username, password, null, messageBuffer);

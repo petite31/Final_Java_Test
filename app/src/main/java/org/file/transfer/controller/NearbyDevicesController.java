@@ -7,7 +7,6 @@ import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import org.file.transfer.model.PeerInfo;
 import org.file.transfer.network.DiscoveryService;
-import org.file.transfer.service.PasskeyManager;
 
 public class NearbyDevicesController {
 

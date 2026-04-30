@@ -17,7 +17,6 @@ public class SignalingServer {
     private static final byte TYPE_ERROR = 0;
 
     // Extended Protocol types for P2P connection signaling
-    private static final byte TYPE_ONLINE_USERS = 5;
 
     // History Protocol types
     private static final byte TYPE_LOG_TRANSFER = 10;
@@ -150,9 +149,8 @@ public class SignalingServer {
         String fileName = dis.readUTF();
         long size = dis.readLong();
         String status = dis.readUTF();
-        String filePath = "";
         try {
-            filePath = dis.readUTF();
+            dis.readUTF(); // filePath might be missing
         } catch (EOFException e) {
             // filePath might be missing
         }

@@ -1,7 +1,5 @@
 package org.file.transfer.service;
 
-import org.file.transfer.network.FileReceiver;
-import org.file.transfer.network.FileSender;
 import org.file.transfer.network.TransferManager;
 
 public class TransferService {

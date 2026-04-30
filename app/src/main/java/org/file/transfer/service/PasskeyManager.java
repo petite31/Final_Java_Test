@@ -1,9 +1,5 @@
 package org.file.transfer.service;
 
-import java.security.SecureRandom;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 

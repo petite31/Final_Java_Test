@@ -1,11 +1,9 @@
 package org.file.transfer.controller;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
 import javafx.stage.DirectoryChooser;
-import org.file.transfer.transport.TransportManager;
 import org.file.transfer.util.SettingsManager;
 
 import java.io.File;

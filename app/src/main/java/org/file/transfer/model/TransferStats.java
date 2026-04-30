@@ -2,14 +2,12 @@ package org.file.transfer.model;
 
 public class TransferStats {
     private long startTime;
-    private long lastUpdate;
     private long totalBytes;
     private long transferredBytes;
 
     public TransferStats(long totalBytes) {
         this.totalBytes = totalBytes;
         this.startTime = System.currentTimeMillis();
-        this.lastUpdate = startTime;
     }
 
     public void update(long newTransferredBytes) {

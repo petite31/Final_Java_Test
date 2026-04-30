@@ -1,7 +1,6 @@
 package org.file.transfer.network;
 
 import org.file.transfer.model.PeerInfo;
-import org.file.transfer.service.PasskeyManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -203,8 +202,8 @@ public class DiscoveryService {
             updatePeer(peerName, senderIp, peerTransferPort, mech, passkey);
         } else if ("PASSKEY_REQUEST".equals(type) && parts.length >= 4) {
             String requesterName = parts[1];
-            String attemptKey = parts[2];
-            int requesterTransferPort = Integer.parseInt(parts[3]);
+            // String attemptKey = parts[2];
+            // int requesterTransferPort = Integer.parseInt(parts[3]);
 
             if (onConnectionRequested != null) {
                 Runnable acceptAction = () -> {

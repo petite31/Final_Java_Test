@@ -14,7 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class FileReceiver {
     private final Transport transport;
-    private final FileSender fileSender;
     private String myPasskey;
     private final Set<String> authenticatedIps = Collections.synchronizedSet(new HashSet<>());
     private final BlockFileManager blockManager = BlockFileManager.getInstance();
@@ -33,7 +32,6 @@ public class FileReceiver {
 
         System.out.println("[DEBUG] FileReceiver listening on " + requestedPort);
 
-        this.fileSender = new FileSender(manager);
         startReceivingLoop();
     }
 
@@ -125,7 +123,7 @@ public class FileReceiver {
             String[] parts = msg.split(":", 6);
             if (parts.length >= 4) {
                 String fileName = parts[3];
-                int totalPackets = Integer.parseInt(parts[2]);
+                // int totalPackets = Integer.parseInt(parts[2]);
 
                 if (parts.length >= 5) {
                     String senderName = parts[4];

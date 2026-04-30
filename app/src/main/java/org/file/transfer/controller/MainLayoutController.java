@@ -82,6 +82,9 @@ public class MainLayoutController {
         loadView("Settings.fxml", null);
     }
 
+    @FXML
+    private void showCommunity(){ loadView("Community.fxml", null);}
+
     public void showSendWithPeer(String ip, String passkey) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/file/transfer/view/SendFiles.fxml"));

@@ -14,13 +14,11 @@ import java.util.List;
 import java.util.Stack;
 
 public class FileSender {
-    private final TransferManager manager;
     private Transport transport;
 
     private static final int PACKET_SIZE = 60000;
 
     public FileSender(TransferManager manager) throws SocketException {
-        this.manager = manager;
         this.transport = TransportManager.getInstance().createTransport("UDP");
     }
 
