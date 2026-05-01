@@ -11,8 +11,9 @@ public class MarketFile {
     private final StringProperty sellerName; // Seller's username for UI display
     private final LongProperty price;
     private final StringProperty uploadDate;
+    private final BooleanProperty isBought;
 
-    public MarketFile(int id, String fileName, long fileSize, String filePath, int sellerId, String sellerName, long price, String uploadDate) {
+    public MarketFile(int id, String fileName, long fileSize, String filePath, int sellerId, String sellerName, long price, String uploadDate, boolean isBought) {
         this.id = new SimpleIntegerProperty(id);
         this.fileName = new SimpleStringProperty(fileName);
         this.fileSize = new SimpleLongProperty(fileSize);
@@ -21,6 +22,7 @@ public class MarketFile {
         this.sellerName = new SimpleStringProperty(sellerName);
         this.price = new SimpleLongProperty(price);
         this.uploadDate = new SimpleStringProperty(uploadDate != null ? uploadDate : "");
+        this.isBought = new SimpleBooleanProperty(isBought);
     }
 
     // --- Property Getters (Required for JavaFX TableView bindings) ---
@@ -32,6 +34,7 @@ public class MarketFile {
     public StringProperty sellerNameProperty() { return sellerName; }
     public LongProperty priceProperty() { return price; }
     public StringProperty uploadDateProperty() { return uploadDate; }
+    public BooleanProperty isBoughtProperty() { return isBought; }
 
     // --- Standard Getters and Setters ---
     public int getId() { return id.get(); }
@@ -57,4 +60,7 @@ public class MarketFile {
 
     public String getUploadDate() { return uploadDate.get(); }
     public void setUploadDate(String uploadDate) { this.uploadDate.set(uploadDate); }
+
+    public boolean isBought() { return isBought.get(); }
+    public void setBought(boolean isBought) { this.isBought.set(isBought); }
 }

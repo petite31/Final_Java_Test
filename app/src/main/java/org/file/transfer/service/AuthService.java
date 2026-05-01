@@ -65,6 +65,10 @@ public class AuthService {
                                 if (responseType == TYPE_LOGIN_RESPONSE && success && dis.available() > 0) {
                                     String userRole = dis.readUTF();
                                     System.out.println("Logged in as: " + userRole);
+                                    if (dis.available() >= 4) {
+                                        int userId = dis.readInt();
+                                        org.file.transfer.service.UserSession.getInstance().setUserId(userId);
+                                    }
                                 }
 
                                 return success;

@@ -102,6 +102,7 @@ public class SignalingServer {
                 String role = DatabaseManager.getUserRole(user);
                 dos.writeUTF("Login successful");
                 dos.writeUTF(role);
+                dos.writeInt(DatabaseManager.getUserIdByUsername(user));
 
                 // Treat signaling over UDP for tracking
                 SessionManager.addClient(user, address.getHostAddress(), port);

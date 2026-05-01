@@ -14,14 +14,166 @@ public class CommunityController {
 
     @FXML private TextField txtSearch;
 
+    private javafx.collections.ObservableList<MarketFile> marketFileList = javafx.collections.FXCollections.observableArrayList();
+
     @FXML
     public void initialize() {
         setupTableColumns();
+        tableMarket.setItems(marketFileList);
         loadMarketData();
     }
 
     private void setupTableColumns() {
-        // Logic render nút Buy/Download/Delete sẽ code ở đây
+        colFileName.setCellValueFactory(cellData -> cellData.getValue().fileNameProperty());
+        colFileSize.setCellValueFactory(cellData -> {
+            long size = cellData.getValue().getFileSize();
+            return new javafx.beans.property.SimpleStringProperty(size / 1024 + " KB");
+        });
+        colSeller.setCellValueFactory(cellData -> cellData.getValue().sellerNameProperty());
+        colPrice.setCellValueFactory(cellData -> {
+            long price = cellData.getValue().getPrice();
+            return new javafx.beans.property.SimpleStringProperty(price == 0 ? "Free" : price + " VNĐ");
+        });
+
+        colAction.setCellFactory(param -> new TableCell<>() {
+            private final Button btnAction = new Button();
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    MarketFile file = getTableView().getItems().get(getIndex());
+                    int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
+
+                    if (file.getSellerId() == currentUserId) {
+                        btnAction.setText("Delete");
+                        btnAction.setStyle("-fx-background-color: #ff4d4d; -fx-text-fill: white;");
+                        btnAction.setOnAction(e -> handleDelete(file));
+                    } else if (file.isBought() || file.getPrice() == 0) {
+                        btnAction.setText("Download");
+                        btnAction.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+                        btnAction.setOnAction(e -> handleDownload(file));
+                    } else {
+                        btnAction.setText("Buy");
+                        btnAction.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
+                        btnAction.setOnAction(e -> handleBuy(file));
+                    }
+                    setGraphic(btnAction);
+                }
+            }
+        });
+    }
+
+    private void handleBuy(MarketFile file) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Do you want to buy " + file.getFileName() + " for " + file.getPrice() + " VNĐ?", ButtonType.YES, ButtonType.NO);
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.YES) {
+                int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
+                new Thread(() -> {
+                    try (java.net.Socket socket = new java.net.Socket("127.0.0.1", 8892);
+                         java.io.DataOutputStream dos = new java.io.DataOutputStream(socket.getOutputStream());
+                         java.io.DataInputStream dis = new java.io.DataInputStream(socket.getInputStream())) {
+
+                        dos.writeUTF("BUY_MARKET_FILE");
+                        dos.writeInt(currentUserId);
+                        dos.writeInt(file.getId());
+                        dos.flush();
+
+                        boolean success = dis.readBoolean();
+                        javafx.application.Platform.runLater(() -> {
+                            if (success) {
+                                new Alert(Alert.AlertType.INFORMATION, "Purchased successfully!").show();
+                                loadMarketData();
+                            } else {
+                                new Alert(Alert.AlertType.ERROR, "Purchase failed!").show();
+                            }
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Network error").show());
+                    }
+                }).start();
+            }
+        });
+    }
+
+    private void handleDownload(MarketFile file) {
+        javafx.stage.DirectoryChooser dirChooser = new javafx.stage.DirectoryChooser();
+        dirChooser.setTitle("Select Save Directory");
+        java.io.File saveDir = dirChooser.showDialog(null);
+        if (saveDir == null) return;
+
+        int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
+        new Thread(() -> {
+            try (java.net.Socket socket = new java.net.Socket("127.0.0.1", 8892);
+                 java.io.DataOutputStream dos = new java.io.DataOutputStream(socket.getOutputStream());
+                 java.io.DataInputStream dis = new java.io.DataInputStream(socket.getInputStream())) {
+
+                dos.writeUTF("DOWNLOAD_MARKET_FILE");
+                dos.writeInt(file.getId());
+                dos.writeInt(currentUserId);
+                dos.flush();
+
+                boolean allowDownload = dis.readBoolean();
+                if (!allowDownload) {
+                    String msg = dis.readUTF();
+                    javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, msg).show());
+                    return;
+                }
+
+                long fileSize = dis.readLong();
+                java.io.File downloadedFile = new java.io.File(saveDir, file.getFileName());
+                try (java.io.FileOutputStream fos = new java.io.FileOutputStream(downloadedFile)) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    long totalRead = 0;
+                    while (totalRead < fileSize && (bytesRead = dis.read(buffer, 0, (int)Math.min(buffer.length, fileSize - totalRead))) != -1) {
+                        fos.write(buffer, 0, bytesRead);
+                        totalRead += bytesRead;
+                    }
+                }
+                javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.INFORMATION, "Downloaded to " + downloadedFile.getAbsolutePath()).show());
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Download error").show());
+            }
+        }).start();
+    }
+
+    private void handleDelete(MarketFile file) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Delete " + file.getFileName() + "?", ButtonType.YES, ButtonType.NO);
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.YES) {
+                int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
+                new Thread(() -> {
+                    try (java.net.Socket socket = new java.net.Socket("127.0.0.1", 8892);
+                         java.io.DataOutputStream dos = new java.io.DataOutputStream(socket.getOutputStream());
+                         java.io.DataInputStream dis = new java.io.DataInputStream(socket.getInputStream())) {
+
+                        dos.writeUTF("DELETE_MARKET_FILE");
+                        dos.writeInt(file.getId());
+                        dos.writeInt(currentUserId);
+                        dos.flush();
+
+                        boolean success = dis.readBoolean();
+                        javafx.application.Platform.runLater(() -> {
+                            if (success) {
+                                new Alert(Alert.AlertType.INFORMATION, "Deleted successfully!").show();
+                                loadMarketData();
+                            } else {
+                                new Alert(Alert.AlertType.ERROR, "Delete failed!").show();
+                            }
+                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Network error").show());
+                    }
+                }).start();
+            }
+        });
     }
 
     @FXML
@@ -69,6 +221,7 @@ public class CommunityController {
         new Thread(() -> {
             try (java.net.Socket socket = new java.net.Socket(serverIp, 8892);
                  java.io.DataOutputStream dos = new java.io.DataOutputStream(socket.getOutputStream());
+                 java.io.DataInputStream dis = new java.io.DataInputStream(socket.getInputStream());
                  java.io.FileInputStream fis = new java.io.FileInputStream(file)) {
 
                 // 1. Gửi Metadata
@@ -87,11 +240,18 @@ public class CommunityController {
                 }
                 dos.flush();
 
-                // Báo cáo thành công lên UI
+                // Đọc phản hồi từ server trước khi báo thành công
+                boolean success = dis.readBoolean();
+
                 javafx.application.Platform.runLater(() -> {
-                    Alert alert = new Alert(Alert.AlertType.INFORMATION, "Sell successful");
-                    alert.showAndWait();
-                    loadMarketData(); // Tải lại bảng để thấy file mới
+                    if (success) {
+                        Alert alert = new Alert(Alert.AlertType.INFORMATION, "Sell successful");
+                        alert.showAndWait();
+                        loadMarketData(); // Tải lại bảng để thấy file mới
+                    } else {
+                        Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to sell file. Server error or Database issue.");
+                        alert.showAndWait();
+                    }
                 });
 
             } catch (Exception e) {
@@ -105,7 +265,43 @@ public class CommunityController {
     }
 
     private void loadMarketData() {
-        // Sẽ gọi database để lấy danh sách file cộng đồng
+        int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
+        String serverIp = "127.0.0.1";
+
+        new Thread(() -> {
+            try (java.net.Socket socket = new java.net.Socket(serverIp, 8892);
+                 java.io.DataOutputStream dos = new java.io.DataOutputStream(socket.getOutputStream());
+                 java.io.DataInputStream dis = new java.io.DataInputStream(socket.getInputStream())) {
+
+                dos.writeUTF("GET_MARKET_DATA");
+                dos.writeInt(currentUserId);
+                dos.flush();
+
+                int count = dis.readInt();
+                java.util.List<MarketFile> files = new java.util.ArrayList<>();
+
+                for (int i = 0; i < count; i++) {
+                    int id = dis.readInt();
+                    String fileName = dis.readUTF();
+                    long fileSize = dis.readLong();
+                    String filePath = dis.readUTF();
+                    int sellerId = dis.readInt();
+                    String sellerName = dis.readUTF();
+                    long price = dis.readLong();
+                    String uploadDate = dis.readUTF();
+                    boolean isBought = dis.readBoolean();
+
+                    files.add(new MarketFile(id, fileName, fileSize, filePath, sellerId, sellerName, price, uploadDate, isBought));
+                }
+
+                javafx.application.Platform.runLater(() -> {
+                    marketFileList.setAll(files);
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
     @FXML
