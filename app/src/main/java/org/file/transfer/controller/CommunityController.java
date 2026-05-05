@@ -100,7 +100,7 @@ public class CommunityController {
             if (response == ButtonType.YES) {
                 int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
                 new Thread(() -> {
-                    try (java.net.Socket socket = new java.net.Socket("127.0.0.1", 8892);
+                    try (java.net.Socket socket = new java.net.Socket("192.168.1.4", 8892);
                          java.io.DataOutputStream dos = new java.io.DataOutputStream(socket.getOutputStream());
                          java.io.DataInputStream dis = new java.io.DataInputStream(socket.getInputStream())) {
 
@@ -135,7 +135,7 @@ public class CommunityController {
 
         int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
         new Thread(() -> {
-            try (java.net.Socket socket = new java.net.Socket("127.0.0.1", 8892);
+            try (java.net.Socket socket = new java.net.Socket("192.168.1.4", 8892);
                  java.io.DataOutputStream dos = new java.io.DataOutputStream(socket.getOutputStream());
                  java.io.DataInputStream dis = new java.io.DataInputStream(socket.getInputStream())) {
 
@@ -177,7 +177,7 @@ public class CommunityController {
             if (response == ButtonType.YES) {
                 int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
                 new Thread(() -> {
-                    try (java.net.Socket socket = new java.net.Socket("127.0.0.1", 8892);
+                    try (java.net.Socket socket = new java.net.Socket("192.168.1.4", 8892);
                          java.io.DataOutputStream dos = new java.io.DataOutputStream(socket.getOutputStream());
                          java.io.DataInputStream dis = new java.io.DataInputStream(socket.getInputStream())) {
 
@@ -244,7 +244,7 @@ public class CommunityController {
         int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
 
         // ĐỊA CHỈ IP SERVER. (Đổi thành IP Server của bạn nếu chạy khác máy)
-        String serverIp = "127.0.0.1";
+        String serverIp = "192.168.1.4";
 
         new Thread(() -> {
             try (java.net.Socket socket = new java.net.Socket(serverIp, 8892);
@@ -294,7 +294,7 @@ public class CommunityController {
 
     private void loadMarketData() {
         int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
-        String serverIp = "127.0.0.1";
+        String serverIp = "192.168.1.4";
 
         new Thread(() -> {
             try (java.net.Socket socket = new java.net.Socket(serverIp, 8892);
