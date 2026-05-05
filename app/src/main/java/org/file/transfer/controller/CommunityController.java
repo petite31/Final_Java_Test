@@ -13,6 +13,7 @@ public class CommunityController {
     @FXML private TableColumn<MarketFile, Void> colAction;
 
     @FXML private TextField txtSearch;
+    @FXML private Label lblPoints;
 
     private javafx.collections.ObservableList<MarketFile> marketFileList = javafx.collections.FXCollections.observableArrayList();
 
@@ -21,6 +22,31 @@ public class CommunityController {
         setupTableColumns();
         tableMarket.setItems(marketFileList);
         loadMarketData();
+        fetchUserPoints();
+    }
+
+    private void fetchUserPoints() {
+        int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
+        String serverIp = "192.168.1.4";
+        new Thread(() -> {
+            try (java.net.Socket socket = new java.net.Socket(serverIp, 8892);
+                 java.io.DataOutputStream dos = new java.io.DataOutputStream(socket.getOutputStream());
+                 java.io.DataInputStream dis = new java.io.DataInputStream(socket.getInputStream())) {
+
+                dos.writeUTF("GET_USER_POINTS");
+                dos.writeInt(currentUserId);
+                dos.flush();
+
+                long points = dis.readLong();
+                javafx.application.Platform.runLater(() -> {
+                    if (lblPoints != null) {
+                        lblPoints.setText("Số điểm: " + points);
+                    }
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
     private void setupTableColumns() {
@@ -33,7 +59,7 @@ public class CommunityController {
         colSeller.setCellValueFactory(cellData -> cellData.getValue().sellerNameProperty());
         colPrice.setCellValueFactory(cellData -> {
             long price = cellData.getValue().getPrice();
-            return new javafx.beans.property.SimpleStringProperty(price == 0 ? "Free" : price + " VNĐ");
+            return new javafx.beans.property.SimpleStringProperty(price == 0 ? "Free" : price + " Điểm");
         });
 
         colAction.setCellFactory(param -> new TableCell<>() {
@@ -82,7 +108,7 @@ public class CommunityController {
                     pane.getChildren().clear();
 
                     if (file.getSellerId() == currentUserId) {
-                        pane.getChildren().addAll(btnDownload, btnDelete);
+                        pane.getChildren().add(btnDelete);
                     } else if (file.isBought() || file.getPrice() == 0) {
                         pane.getChildren().add(btnDownload);
                     } else {
@@ -95,7 +121,7 @@ public class CommunityController {
     }
 
     private void handleBuy(MarketFile file) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Do you want to buy " + file.getFileName() + " for " + file.getPrice() + " VNĐ?", ButtonType.YES, ButtonType.NO);
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Bạn sẽ bị trừ " + file.getPrice() + " điểm để mua file " + file.getFileName() + ". Bạn có muốn tiếp tục?", ButtonType.YES, ButtonType.NO);
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.YES) {
                 int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
@@ -109,13 +135,25 @@ public class CommunityController {
                         dos.writeInt(file.getId());
                         dos.flush();
 
-                        boolean success = dis.readBoolean();
+                        String status = dis.readUTF();
                         javafx.application.Platform.runLater(() -> {
-                            if (success) {
-                                new Alert(Alert.AlertType.INFORMATION, "Purchased successfully!").show();
-                                loadMarketData();
-                            } else {
-                                new Alert(Alert.AlertType.ERROR, "Purchase failed!").show();
+                            switch (status) {
+                                case "SUCCESS":
+                                    new Alert(Alert.AlertType.INFORMATION, "Purchased successfully!").show();
+                                    loadMarketData();
+                                    break;
+                                case "INSUFFICIENT_POINTS":
+                                    new Alert(Alert.AlertType.ERROR, "Tài khoản của bạn không đủ điểm để mua file này!").show();
+                                    break;
+                                case "CANNOT_BUY_OWN_FILE":
+                                    new Alert(Alert.AlertType.WARNING, "Bạn không thể tự mua file do chính mình đăng!").show();
+                                    break;
+                                case "FILE_NOT_FOUND":
+                                    new Alert(Alert.AlertType.ERROR, "File này không còn tồn tại trên chợ!").show();
+                                    break;
+                                default:
+                                    new Alert(Alert.AlertType.ERROR, "Lỗi hệ thống: " + status).show();
+                                    break;
                             }
                         });
                     } catch (Exception e) {
@@ -222,7 +260,7 @@ public class CommunityController {
             TextInputDialog dialog = new TextInputDialog("0");
             dialog.setTitle("Set the Price");
             dialog.setHeaderText("Sell: " + selectedFile.getName());
-            dialog.setContentText("Price (VNĐ):");
+            dialog.setContentText("Số điểm (Points):");
 
             dialog.showAndWait().ifPresent(priceStr -> {
                 try {
@@ -232,7 +270,7 @@ public class CommunityController {
                     // 3. Tiến hành Upload (Chạy trên luồng riêng để không đơ UI)
                     uploadMarketFile(selectedFile, price);
                 } catch (NumberFormatException e) {
-                    Alert alert = new Alert(Alert.AlertType.ERROR, "The price is invalid. Please enter a positive integer.");
+                    Alert alert = new Alert(Alert.AlertType.ERROR, "Số điểm không hợp lệ. Vui lòng nhập một số nguyên dương.");
                     alert.showAndWait();
                 }
             });
@@ -324,6 +362,7 @@ public class CommunityController {
 
                 javafx.application.Platform.runLater(() -> {
                     marketFileList.setAll(files);
+                    fetchUserPoints();
                 });
 
             } catch (Exception e) {

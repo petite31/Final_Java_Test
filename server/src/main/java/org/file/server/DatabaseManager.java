@@ -232,28 +232,32 @@ public class DatabaseManager {
         List<MarketFileRecord> list = new ArrayList<>();
         // Try with upload_date first, if it fails, try without it or with created_at
         String query = "SELECT m.id, m.file_name, m.file_size, m.file_path, m.seller_id, u.username as seller_name, m.price, "
-                + "(CASE WHEN 1=1 THEN CURRENT_TIMESTAMP END) as upload_date " 
+                + "(CASE WHEN 1=1 THEN CURRENT_TIMESTAMP END) as upload_date "
                 + "FROM market_files m " +
                 "JOIN users u ON m.seller_id = u.id " +
                 "ORDER BY m.id DESC";
-                
+
         // A safer query if we don't know the exact name of the date column
         try (Connection conn = getConnection();
-                PreparedStatement stmt = conn.prepareStatement("SELECT m.*, u.username as seller_name FROM market_files m JOIN users u ON m.seller_id = u.id ORDER BY m.id DESC");
+                PreparedStatement stmt = conn.prepareStatement(
+                        "SELECT m.*, u.username as seller_name FROM market_files m JOIN users u ON m.seller_id = u.id ORDER BY m.id DESC");
                 ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 MarketFileRecord rec = new MarketFileRecord();
                 rec.id = rs.getInt("id");
                 rec.fileName = rs.getString("file_name");
-                if (rec.fileName == null) rec.fileName = "Unknown";
+                if (rec.fileName == null)
+                    rec.fileName = "Unknown";
                 rec.fileSize = rs.getLong("file_size");
                 rec.filePath = rs.getString("file_path");
-                if (rec.filePath == null) rec.filePath = "";
+                if (rec.filePath == null)
+                    rec.filePath = "";
                 rec.sellerId = rs.getInt("seller_id");
                 rec.sellerName = rs.getString("seller_name");
-                if (rec.sellerName == null) rec.sellerName = "Unknown";
+                if (rec.sellerName == null)
+                    rec.sellerName = "Unknown";
                 rec.price = rs.getLong("price");
-                
+
                 // Try to get upload_date or created_at, gracefully fallback if neither exists
                 try {
                     java.sql.Timestamp ts = rs.getTimestamp("upload_date");
@@ -290,17 +294,79 @@ public class DatabaseManager {
         return false;
     }
 
-    public static boolean buyFile(int buyerId, int fileId) {
-        String query = "INSERT INTO transaction (buyer_id, file_id) VALUES (?, ?)";
-        try (Connection conn = getConnection();
-                PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, buyerId);
-            stmt.setInt(2, fileId);
-            return stmt.executeUpdate() > 0;
+    public static String buyFile(int buyerId, int fileId) {
+        String checkFileQuery = "SELECT price, seller_id FROM market_files WHERE id = ?";
+        String checkPointsQuery = "SELECT points FROM users WHERE id = ?";
+        String deductPointsQuery = "UPDATE users SET points = points - ? WHERE id = ?";
+        String addPointsQuery = "UPDATE users SET points = points + ? WHERE id = ?";
+        String insertTransactionQuery = "INSERT INTO transaction (buyer_id, file_id) VALUES (?, ?)";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false); 
+
+            try {
+                long price = 0;
+                int sellerId = -1;
+                try (PreparedStatement stmt = conn.prepareStatement(checkFileQuery)) {
+                    stmt.setInt(1, fileId);
+                    ResultSet rs = stmt.executeQuery();
+                    if (rs.next()) {
+                        price = rs.getLong("price");
+                        sellerId = rs.getInt("seller_id");
+                    } else {
+                        return "FILE_NOT_FOUND";
+                    }
+                }
+
+                if (buyerId == sellerId) {
+                    return "CANNOT_BUY_OWN_FILE";
+                }
+
+                long buyerPoints = 0;
+                try (PreparedStatement stmt = conn.prepareStatement(checkPointsQuery)) {
+                    stmt.setInt(1, buyerId);
+                    ResultSet rs = stmt.executeQuery();
+                    if (rs.next()) {
+                        buyerPoints = rs.getLong("points");
+                    }
+                }
+
+                if (buyerPoints < price) {
+                    return "INSUFFICIENT_POINTS";
+                }
+
+                try (PreparedStatement stmt = conn.prepareStatement(deductPointsQuery)) {
+                    stmt.setLong(1, price);
+                    stmt.setInt(2, buyerId);
+                    stmt.executeUpdate();
+                }
+
+                try (PreparedStatement stmt = conn.prepareStatement(addPointsQuery)) {
+                    stmt.setLong(1, price);
+                    stmt.setInt(2, sellerId);
+                    stmt.executeUpdate();
+                }
+
+                try (PreparedStatement stmt = conn.prepareStatement(insertTransactionQuery)) {
+                    stmt.setInt(1, buyerId);
+                    stmt.setInt(2, fileId);
+                    stmt.executeUpdate();
+                }
+
+                conn.commit();
+                return "SUCCESS";
+
+            } catch (SQLException e) {
+                conn.rollback();
+                e.printStackTrace();
+                return "DATABASE_ERROR";
+            } finally {
+                conn.setAutoCommit(true);
+            }
         } catch (SQLException e) {
             e.printStackTrace();
+            return "CONNECTION_ERROR";
         }
-        return false;
     }
 
     public static String getFilePath(int fileId) {
@@ -324,8 +390,9 @@ public class DatabaseManager {
         String deleteFile = "DELETE FROM market_files WHERE id = ? AND seller_id = ?";
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
-            
-            // Try to delete from transaction table first, ignoring errors if table doesn't exist
+
+            // Try to delete from transaction table first, ignoring errors if table doesn't
+            // exist
             try (PreparedStatement stmt1 = conn.prepareStatement(deleteTransactions)) {
                 stmt1.setInt(1, fileId);
                 stmt1.executeUpdate();
@@ -355,21 +422,76 @@ public class DatabaseManager {
     }
 
     public static boolean insertMarketFile(String fileName, long fileSize, String filePath, int sellerId, long price) {
-        String query = "INSERT INTO market_files (file_name, file_size, file_path, seller_id, price) VALUES (?, ?, ?, ?, ?)";
-        try (Connection conn = getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setString(1, fileName);
-            pstmt.setLong(2, fileSize);
-            pstmt.setString(3, filePath);
-            pstmt.setInt(4, sellerId);
-            pstmt.setLong(5, price);
-            int affectedRows = pstmt.executeUpdate();
-            return affectedRows > 0;
+        String insertQuery = "INSERT INTO market_files (file_name, file_size, file_path, seller_id, price) VALUES (?, ?, ?, ?, ?)";
+        String updatePointsQuery = "UPDATE users SET points = points + 2 WHERE id = ?";
+        
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement pstmt = conn.prepareStatement(insertQuery)) {
+                pstmt.setString(1, fileName);
+                pstmt.setLong(2, fileSize);
+                pstmt.setString(3, filePath);
+                pstmt.setInt(4, sellerId);
+                pstmt.setLong(5, price);
+                int affectedRows = pstmt.executeUpdate();
+                
+                if (affectedRows > 0) {
+                    try (PreparedStatement updateStmt = conn.prepareStatement(updatePointsQuery)) {
+                        updateStmt.setInt(1, sellerId);
+                        updateStmt.executeUpdate();
+                    }
+                    conn.commit();
+                    return true;
+                } else {
+                    conn.rollback();
+                    return false;
+                }
+            } catch (SQLException ex) {
+                conn.rollback();
+                throw ex;
+            } finally {
+                conn.setAutoCommit(true);
+            }
         } catch (SQLException e) {
             System.err.println("Error in insertMarketFile: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
+    }
+    public static long getUserPoints(int userId) {
+        String query = "SELECT points FROM users WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, userId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getLong("points");
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+
+    public static long getFilePrice(int fileId) {
+        String query = "SELECT price FROM market_files WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, fileId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getLong("price");
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return -1;
+    }
+
+    public static int getFileSeller(int fileId) {
+        String query = "SELECT seller_id FROM market_files WHERE id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            stmt.setInt(1, fileId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) return rs.getInt("seller_id");
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return -1;
     }
 
 }

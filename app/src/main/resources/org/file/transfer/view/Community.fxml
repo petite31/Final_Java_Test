@@ -20,6 +20,7 @@
                 <Label styleClass="title-label" text="Community Marketplace" />
                 <Label styleClass="subtitle-label" text="Share and explore together" />
             </VBox>
+            <Label fx:id="lblPoints" text="Số điểm: 0" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #e67e22;" />
             <Button onAction="#handleSellFile" styleClass="button-primary" text="Sell" />
         </children>
     </HBox>
@@ -30,7 +31,7 @@
                 <TableColumn fx:id="colFileName" prefWidth="200.0" text="File name" />
                 <TableColumn fx:id="colFileSize" prefWidth="100.0" text="File size" />
                 <TableColumn fx:id="colSeller" prefWidth="90.0" text="Seller" />
-                <TableColumn fx:id="colPrice" prefWidth="90.0" text="Price (VNĐ)" />
+                <TableColumn fx:id="colPrice" prefWidth="90.0" text="Price (Điểm)" />
                 <TableColumn fx:id="colAction" prefWidth="160.0" text="Action" />
             </columns>
             <columnResizePolicy>
