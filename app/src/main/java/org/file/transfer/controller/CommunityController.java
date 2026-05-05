@@ -29,6 +29,7 @@ public class CommunityController {
             long size = cellData.getValue().getFileSize();
             return new javafx.beans.property.SimpleStringProperty(size / 1024 + " KB");
         });
+
         colSeller.setCellValueFactory(cellData -> cellData.getValue().sellerNameProperty());
         colPrice.setCellValueFactory(cellData -> {
             long price = cellData.getValue().getPrice();
@@ -36,7 +37,38 @@ public class CommunityController {
         });
 
         colAction.setCellFactory(param -> new TableCell<>() {
-            private final Button btnAction = new Button();
+            private final Button btnDownload = new Button("Download");
+            private final Button btnDelete = new Button("Delete");
+            private final Button btnBuy = new Button("Buy");
+            private final javafx.scene.layout.HBox pane = new javafx.scene.layout.HBox(8);
+
+            {
+                btnDownload.getStyleClass().add("button-action");
+                btnDownload.setStyle("-fx-text-fill: #007a82; -fx-font-weight: bold;");
+                btnDownload.setMinWidth(Button.USE_PREF_SIZE);
+                btnDownload.setOnAction(event -> {
+                    MarketFile file = getTableView().getItems().get(getIndex());
+                    handleDownload(file);
+                });
+
+                btnDelete.getStyleClass().add("button-action");
+                btnDelete.setStyle("-fx-text-fill: #e74c3c;");
+                btnDelete.setMinWidth(Button.USE_PREF_SIZE);
+                btnDelete.setOnAction(event -> {
+                    MarketFile file = getTableView().getItems().get(getIndex());
+                    handleDelete(file);
+                });
+
+                btnBuy.getStyleClass().add("button-action");
+                btnBuy.setStyle("-fx-text-fill: #2196F3; -fx-font-weight: bold;");
+                btnBuy.setMinWidth(Button.USE_PREF_SIZE);
+                btnBuy.setOnAction(event -> {
+                    MarketFile file = getTableView().getItems().get(getIndex());
+                    handleBuy(file);
+                });
+
+                pane.setAlignment(javafx.geometry.Pos.CENTER);
+            }
 
             @Override
             protected void updateItem(Void item, boolean empty) {
@@ -47,20 +79,16 @@ public class CommunityController {
                     MarketFile file = getTableView().getItems().get(getIndex());
                     int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
 
+                    pane.getChildren().clear();
+
                     if (file.getSellerId() == currentUserId) {
-                        btnAction.setText("Delete");
-                        btnAction.setStyle("-fx-background-color: #ff4d4d; -fx-text-fill: white;");
-                        btnAction.setOnAction(e -> handleDelete(file));
+                        pane.getChildren().addAll(btnDownload, btnDelete);
                     } else if (file.isBought() || file.getPrice() == 0) {
-                        btnAction.setText("Download");
-                        btnAction.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
-                        btnAction.setOnAction(e -> handleDownload(file));
+                        pane.getChildren().add(btnDownload);
                     } else {
-                        btnAction.setText("Buy");
-                        btnAction.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
-                        btnAction.setOnAction(e -> handleBuy(file));
+                        pane.getChildren().add(btnBuy);
                     }
-                    setGraphic(btnAction);
+                    setGraphic(pane);
                 }
             }
         });

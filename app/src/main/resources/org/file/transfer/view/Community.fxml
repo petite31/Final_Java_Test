@@ -31,7 +31,7 @@
                 <TableColumn fx:id="colFileSize" prefWidth="100.0" text="File size" />
                 <TableColumn fx:id="colSeller" prefWidth="90.0" text="Seller" />
                 <TableColumn fx:id="colPrice" prefWidth="90.0" text="Price (VNĐ)" />
-                <TableColumn fx:id="colAction" prefWidth="160.0" text="Choose" />
+                <TableColumn fx:id="colAction" prefWidth="160.0" text="Action" />
             </columns>
             <columnResizePolicy>
                 <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
