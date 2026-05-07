@@ -16,11 +16,23 @@ public class CommunityController {
     @FXML private Label lblPoints;
 
     private javafx.collections.ObservableList<MarketFile> marketFileList = javafx.collections.FXCollections.observableArrayList();
+    private javafx.collections.transformation.FilteredList<MarketFile> filteredData;
 
     @FXML
     public void initialize() {
         setupTableColumns();
-        tableMarket.setItems(marketFileList);
+        
+        filteredData = new javafx.collections.transformation.FilteredList<>(marketFileList, b -> true);
+        javafx.collections.transformation.SortedList<MarketFile> sortedData = new javafx.collections.transformation.SortedList<>(filteredData);
+        sortedData.comparatorProperty().bind(tableMarket.comparatorProperty());
+        tableMarket.setItems(sortedData);
+        
+        if (txtSearch != null) {
+            txtSearch.textProperty().addListener((observable, oldValue, newValue) -> {
+                handleSearch();
+            });
+        }
+        
         loadMarketData();
         fetchUserPoints();
     }
@@ -244,8 +256,23 @@ public class CommunityController {
 
     @FXML
     private void handleSearch() {
+        if (txtSearch == null || filteredData == null) return;
         String query = txtSearch.getText();
-        System.out.println("Searching for: " + query);
+        
+        if (query == null || query.trim().isEmpty()) {
+            filteredData.setPredicate(file -> true);
+        } else {
+            String lowerCaseFilter = query.toLowerCase();
+            filteredData.setPredicate(file -> {
+                if (file.getFileName() != null && file.getFileName().toLowerCase().contains(lowerCaseFilter)) {
+                    return true;
+                }
+                if (file.getSellerName() != null && file.getSellerName().toLowerCase().contains(lowerCaseFilter)) {
+                    return true;
+                }
+                return false;
+            });
+        }
     }
 
     @FXML

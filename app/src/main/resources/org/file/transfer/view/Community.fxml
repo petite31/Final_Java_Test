@@ -20,6 +20,9 @@
                 <Label styleClass="title-label" text="Community Marketplace" />
                 <Label styleClass="subtitle-label" text="Share and explore together" />
             </VBox>
+            
+            <TextField fx:id="txtSearch" promptText="Search file or seller..." prefWidth="250.0" />
+
             <Label fx:id="lblPoints" text="Số điểm: 0" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #e67e22;" />
             <Button onAction="#handleSellFile" styleClass="button-primary" text="Sell" />
         </children>
