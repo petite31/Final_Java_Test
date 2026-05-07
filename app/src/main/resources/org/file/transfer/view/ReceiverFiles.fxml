@@ -1,17 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Tab?>
-<?import javafx.scene.control.TabPane?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<VBox spacing="20.0" style="-fx-background-color: #F4F4F4;" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.ReceiverFilesController">
+<VBox spacing="20.0" style="-fx-background-color: #F4F4F4;" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.ReceiverFilesController">
    <padding>
       <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
    </padding>
@@ -28,7 +21,7 @@
         <tabs>
           <Tab text="All Transactions">
                <content>
-                  <TableView fx:id="allTable" VBox.vgrow="ALWAYS" styleClass="table-view">
+                  <TableView fx:id="allTable" styleClass="table-view" VBox.vgrow="ALWAYS">
                     <columns>
                       <TableColumn fx:id="colType" prefWidth="75.0" text="Type" />
                       <TableColumn fx:id="colPeer" prefWidth="90.0" text="User" />
@@ -46,7 +39,7 @@
           </Tab>
           <Tab text="Sent">
                <content>
-                  <TableView fx:id="sentTable" VBox.vgrow="ALWAYS" styleClass="table-view">
+                  <TableView fx:id="sentTable" styleClass="table-view" VBox.vgrow="ALWAYS">
                      <columns>
                         <TableColumn fx:id="colSentPeer" prefWidth="90.0" text="Receiver" />
                         <TableColumn fx:id="colSentFile" prefWidth="130.0" text="File Name" />
@@ -63,14 +56,13 @@
           </Tab>
             <Tab text="Received">
                <content>
-                  <TableView fx:id="receivedTable" VBox.vgrow="ALWAYS" styleClass="table-view">
+                  <TableView fx:id="receivedTable" styleClass="table-view" VBox.vgrow="ALWAYS">
                      <columns>
                         <TableColumn fx:id="colReceivedPeer" prefWidth="90.0" text="Sender" />
                         <TableColumn fx:id="colReceivedFile" prefWidth="130.0" text="File Name" />
                         <TableColumn fx:id="colReceivedSize" prefWidth="90.0" text="Size" />
                         <TableColumn fx:id="colReceivedTime" prefWidth="150.0" text="Time" />
                         <TableColumn fx:id="colReceivedStatus" prefWidth="100.0" text="Status" />
-                        <TableColumn fx:id="colReceivedPath" prefWidth="80.0" text="File Location" />
                         <TableColumn fx:id="colReceivedAction" prefWidth="160.0" text="Action" />
                      </columns>
                      <columnResizePolicy>

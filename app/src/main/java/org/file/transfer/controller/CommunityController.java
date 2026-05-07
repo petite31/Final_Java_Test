@@ -134,6 +134,9 @@ public class CommunityController {
 
     private void handleBuy(MarketFile file) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Bạn sẽ bị trừ " + file.getPrice() + " điểm để mua file " + file.getFileName() + ". Bạn có muốn tiếp tục?", ButtonType.YES, ButtonType.NO);
+        confirm.setTitle("Confirm Purchase");
+        confirm.setHeaderText(null);
+        styleDialog(confirm);
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.YES) {
                 int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
@@ -151,26 +154,26 @@ public class CommunityController {
                         javafx.application.Platform.runLater(() -> {
                             switch (status) {
                                 case "SUCCESS":
-                                    new Alert(Alert.AlertType.INFORMATION, "Purchased successfully!").show();
+                                    showAlert(Alert.AlertType.INFORMATION, "Success", "Purchased successfully!");
                                     loadMarketData();
                                     break;
                                 case "INSUFFICIENT_POINTS":
-                                    new Alert(Alert.AlertType.ERROR, "Tài khoản của bạn không đủ điểm để mua file này!").show();
+                                    showAlert(Alert.AlertType.ERROR, "Error", "Tài khoản của bạn không đủ điểm để mua file này!");
                                     break;
                                 case "CANNOT_BUY_OWN_FILE":
-                                    new Alert(Alert.AlertType.WARNING, "Bạn không thể tự mua file do chính mình đăng!").show();
+                                    showAlert(Alert.AlertType.WARNING, "Warning", "Bạn không thể tự mua file do chính mình đăng!");
                                     break;
                                 case "FILE_NOT_FOUND":
-                                    new Alert(Alert.AlertType.ERROR, "File này không còn tồn tại trên chợ!").show();
+                                    showAlert(Alert.AlertType.ERROR, "Error", "File này không còn tồn tại trên chợ!");
                                     break;
                                 default:
-                                    new Alert(Alert.AlertType.ERROR, "Lỗi hệ thống: " + status).show();
+                                    showAlert(Alert.AlertType.ERROR, "Error", "Lỗi hệ thống: " + status);
                                     break;
                             }
                         });
                     } catch (Exception e) {
                         e.printStackTrace();
-                        javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Network error").show());
+                        javafx.application.Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Error", "Network error"));
                     }
                 }).start();
             }
@@ -197,7 +200,7 @@ public class CommunityController {
                 boolean allowDownload = dis.readBoolean();
                 if (!allowDownload) {
                     String msg = dis.readUTF();
-                    javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, msg).show());
+                    javafx.application.Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Error", msg));
                     return;
                 }
 
@@ -212,17 +215,20 @@ public class CommunityController {
                         totalRead += bytesRead;
                     }
                 }
-                javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.INFORMATION, "Downloaded to " + downloadedFile.getAbsolutePath()).show());
+                javafx.application.Platform.runLater(() -> showAlert(Alert.AlertType.INFORMATION, "Success", "Downloaded to " + downloadedFile.getAbsolutePath()));
 
             } catch (Exception e) {
                 e.printStackTrace();
-                javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Download error").show());
+                javafx.application.Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Error", "Download error"));
             }
         }).start();
     }
 
     private void handleDelete(MarketFile file) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Delete " + file.getFileName() + "?", ButtonType.YES, ButtonType.NO);
+        confirm.setTitle("Confirm Delete");
+        confirm.setHeaderText(null);
+        styleDialog(confirm);
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.YES) {
                 int currentUserId = org.file.transfer.service.UserSession.getInstance().getUserId();
@@ -239,15 +245,15 @@ public class CommunityController {
                         boolean success = dis.readBoolean();
                         javafx.application.Platform.runLater(() -> {
                             if (success) {
-                                new Alert(Alert.AlertType.INFORMATION, "Deleted successfully!").show();
+                                showAlert(Alert.AlertType.INFORMATION, "Success", "Deleted successfully!");
                                 loadMarketData();
                             } else {
-                                new Alert(Alert.AlertType.ERROR, "Delete failed!").show();
+                                showAlert(Alert.AlertType.ERROR, "Error", "Delete failed!");
                             }
                         });
                     } catch (Exception e) {
                         e.printStackTrace();
-                        javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Network error").show());
+                        javafx.application.Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Error", "Network error"));
                     }
                 }).start();
             }
@@ -288,6 +294,7 @@ public class CommunityController {
             dialog.setTitle("Set the Price");
             dialog.setHeaderText("Sell: " + selectedFile.getName());
             dialog.setContentText("Số điểm (Points):");
+            styleDialog(dialog);
 
             dialog.showAndWait().ifPresent(priceStr -> {
                 try {
@@ -297,8 +304,7 @@ public class CommunityController {
                     // 3. Tiến hành Upload (Chạy trên luồng riêng để không đơ UI)
                     uploadMarketFile(selectedFile, price);
                 } catch (NumberFormatException e) {
-                    Alert alert = new Alert(Alert.AlertType.ERROR, "Số điểm không hợp lệ. Vui lòng nhập một số nguyên dương.");
-                    alert.showAndWait();
+                    showAlertAndWait(Alert.AlertType.ERROR, "Error", "Số điểm không hợp lệ. Vui lòng nhập một số nguyên dương.");
                 }
             });
         }
@@ -338,20 +344,17 @@ public class CommunityController {
 
                 javafx.application.Platform.runLater(() -> {
                     if (success) {
-                        Alert alert = new Alert(Alert.AlertType.INFORMATION, "Sell successful");
-                        alert.showAndWait();
+                        showAlertAndWait(Alert.AlertType.INFORMATION, "Success", "Sell successful");
                         loadMarketData(); // Tải lại bảng để thấy file mới
                     } else {
-                        Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to sell file. Server error or Database issue.");
-                        alert.showAndWait();
+                        showAlertAndWait(Alert.AlertType.ERROR, "Error", "Failed to sell file. Server error or Database issue.");
                     }
                 });
 
             } catch (Exception e) {
                 e.printStackTrace();
                 javafx.application.Platform.runLater(() -> {
-                    Alert alert = new Alert(Alert.AlertType.ERROR, "Something wrong!");
-                    alert.showAndWait();
+                    showAlertAndWait(Alert.AlertType.ERROR, "Error", "Something wrong!");
                 });
             }
         }).start();
@@ -404,6 +407,44 @@ public class CommunityController {
         if (MainLayoutController.getInstance() != null) {
             MainLayoutController.getInstance().showHome();
         }
+    }
+
+    private void styleDialog(Dialog<?> dialog) {
+        DialogPane dialogPane = dialog.getDialogPane();
+        try {
+            dialogPane.getStylesheets().add(getClass().getResource("/org/file/transfer/styles.css").toExternalForm());
+        } catch (Exception e) {}
+        
+        dialogPane.setStyle("-fx-background-color: #ffffff; -fx-font-family: 'Inter', 'Segoe UI', sans-serif;");
+        
+        javafx.application.Platform.runLater(() -> {
+            for (ButtonType buttonType : dialogPane.getButtonTypes()) {
+                javafx.scene.Node button = dialogPane.lookupButton(buttonType);
+                if (button instanceof Button) {
+                    if (buttonType.getButtonData().isCancelButton() || buttonType == ButtonType.NO || buttonType == ButtonType.CANCEL) {
+                        button.setStyle("-fx-background-color: transparent; -fx-text-fill: #007a82; -fx-border-color: #007a82; -fx-border-width: 2; -fx-border-radius: 40; -fx-background-radius: 40; -fx-padding: 8 20; -fx-font-weight: bold; -fx-cursor: hand;");
+                    } else {
+                        button.setStyle("-fx-background-color: #007a82; -fx-text-fill: white; -fx-background-radius: 40; -fx-padding: 8 20; -fx-font-weight: bold; -fx-cursor: hand;");
+                    }
+                }
+            }
+        });
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type, content);
+        if (title != null) alert.setTitle(title);
+        alert.setHeaderText(null);
+        styleDialog(alert);
+        alert.show();
+    }
+    
+    private void showAlertAndWait(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type, content);
+        if (title != null) alert.setTitle(title);
+        alert.setHeaderText(null);
+        styleDialog(alert);
+        alert.showAndWait();
     }
 
 }

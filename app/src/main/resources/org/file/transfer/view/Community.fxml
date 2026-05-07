@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
 
-<VBox spacing="20.0" styleClass="root" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.CommunityController">
+<VBox spacing="20.0" styleClass="root" stylesheets="@../styles.css" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.file.transfer.controller.CommunityController">
     <padding>
         <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
     </padding>
@@ -16,19 +17,19 @@
                 </HBox.margin>
             </Button>
 
-            <VBox HBox.hgrow="ALWAYS">
+            <VBox prefHeight="37.0" prefWidth="370.0" HBox.hgrow="ALWAYS">
                 <Label styleClass="title-label" text="Community Marketplace" />
                 <Label styleClass="subtitle-label" text="Share and explore together" />
             </VBox>
             
-            <TextField fx:id="txtSearch" promptText="Search file or seller..." prefWidth="250.0" />
+            <TextField fx:id="txtSearch" prefWidth="250.0" promptText="Search file or seller..." />
 
-            <Label fx:id="lblPoints" text="Số điểm: 0" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #e67e22;" />
+            <Label fx:id="lblPoints" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #e67e22;" text="Số điểm: 0" />
             <Button onAction="#handleSellFile" styleClass="button-primary" text="Sell" />
         </children>
     </HBox>
 
-    <VBox VBox.vgrow="ALWAYS" styleClass="card" style="-fx-padding: 0;">
+    <VBox style="-fx-padding: 0;" styleClass="card" VBox.vgrow="ALWAYS">
         <TableView fx:id="tableMarket" VBox.vgrow="ALWAYS">
             <columns>
                 <TableColumn fx:id="colFileName" prefWidth="200.0" text="File name" />
