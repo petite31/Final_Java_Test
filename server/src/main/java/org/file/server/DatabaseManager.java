@@ -280,7 +280,7 @@ public class DatabaseManager {
     }
 
     public static boolean hasUserBoughtFile(int userId, int fileId) {
-        String query = "SELECT 1 FROM `transaction` WHERE buyer_id = ? AND file_id = ?";
+        String query = "SELECT 1 FROM transactions WHERE buyer_id = ? AND file_id = ?";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, userId);
@@ -294,7 +294,29 @@ public class DatabaseManager {
         return false;
     }
 
+    public static void ensureTransactionTable() {
+        String query = "CREATE TABLE IF NOT EXISTS `transaction` (" +
+                "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "buyer_id INT, " +
+                "file_id INT, " +
+                "transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
+                ")";
+        try (Connection conn = getConnection();
+             java.sql.Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(query);
+            
+            try {
+                stmt.executeQuery("SELECT points FROM users LIMIT 1");
+            } catch (SQLException e) {
+                stmt.executeUpdate("ALTER TABLE users ADD COLUMN points BIGINT DEFAULT 6");
+            }
+        } catch (SQLException e) {
+            System.err.println("Could not create transaction table: " + e.getMessage());
+        }
+    }
+
     public static String buyFile(int buyerId, int fileId) {
+        ensureTransactionTable();
         String checkFileQuery = "SELECT price, seller_id FROM market_files WHERE id = ?";
         String checkPointsQuery = "SELECT points FROM users WHERE id = ?";
         String deductPointsQuery = "UPDATE users SET points = points - ? WHERE id = ?";
@@ -359,7 +381,7 @@ public class DatabaseManager {
             } catch (SQLException e) {
                 conn.rollback();
                 e.printStackTrace();
-                return "DATABASE_ERROR";
+                return "DATABASE_ERROR: " + e.getMessage();
             } finally {
                 conn.setAutoCommit(true);
             }
