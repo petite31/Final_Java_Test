@@ -14,7 +14,7 @@
       <Label styleClass="title-label" text="Dashboard" />
       <HBox spacing="30.0">
          <children>
-            <VBox prefHeight="200.0" prefWidth="300.0" styleClass="card">
+            <VBox prefHeight="300.0" prefWidth="400.0" styleClass="card">
                <children>
                   <Label styleClass="section-header" text="MY PASSKEY" />
                   <Label fx:id="lblPasskey" style="-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #005461;" text="------" />

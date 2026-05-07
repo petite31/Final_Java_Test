@@ -31,7 +31,7 @@
                 <TableColumn fx:id="colFileName" prefWidth="200.0" text="File name" />
                 <TableColumn fx:id="colFileSize" prefWidth="100.0" text="File size" />
                 <TableColumn fx:id="colSeller" prefWidth="90.0" text="Seller" />
-                <TableColumn fx:id="colPrice" prefWidth="90.0" text="Price (Điểm)" />
+                <TableColumn fx:id="colPrice" prefWidth="90.0" text="Points" />
                 <TableColumn fx:id="colAction" prefWidth="160.0" text="Action" />
             </columns>
             <columnResizePolicy>

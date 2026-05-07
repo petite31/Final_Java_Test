@@ -280,7 +280,7 @@ public class DatabaseManager {
     }
 
     public static boolean hasUserBoughtFile(int userId, int fileId) {
-        String query = "SELECT 1 FROM transaction WHERE buyer_id = ? AND file_id = ?";
+        String query = "SELECT 1 FROM `transaction` WHERE buyer_id = ? AND file_id = ?";
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(query)) {
             stmt.setInt(1, userId);
@@ -299,7 +299,7 @@ public class DatabaseManager {
         String checkPointsQuery = "SELECT points FROM users WHERE id = ?";
         String deductPointsQuery = "UPDATE users SET points = points - ? WHERE id = ?";
         String addPointsQuery = "UPDATE users SET points = points + ? WHERE id = ?";
-        String insertTransactionQuery = "INSERT INTO transaction (buyer_id, file_id) VALUES (?, ?)";
+        String insertTransactionQuery = "INSERT INTO `transaction` (buyer_id, file_id) VALUES (?, ?)";
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false); 
@@ -386,7 +386,7 @@ public class DatabaseManager {
     }
 
     public static boolean deleteMarketFile(int fileId, int sellerId) {
-        String deleteTransactions = "DELETE FROM transaction WHERE file_id = ?";
+        String deleteTransactions = "DELETE FROM `transaction` WHERE file_id = ?";
         String deleteFile = "DELETE FROM market_files WHERE id = ? AND seller_id = ?";
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
@@ -422,7 +422,7 @@ public class DatabaseManager {
     }
 
     public static boolean insertMarketFile(String fileName, long fileSize, String filePath, int sellerId, long price) {
-        String insertQuery = "INSERT INTO market_files (file_name, file_size, file_path, seller_id, price) VALUES (?, ?, ?, ?, ?)";
+        String insertQuery = "INSERT INTO market_files (file_name, file_size, file_path, seller_id, price, upload_date) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
         String updatePointsQuery = "UPDATE users SET points = points + 2 WHERE id = ?";
         
         try (Connection conn = getConnection()) {
